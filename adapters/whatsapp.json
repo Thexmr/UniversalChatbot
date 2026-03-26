@@ -1,0 +1,16 @@
+{
+  "domain": "web.whatsapp.com",
+  "name": "WhatsApp Web",
+  "selectors": {
+    "chat_container": "[data-testid='chat-list']",
+    "messages": "[data-testid='msg-container']",
+    "message_text": ".selectable-text",
+    "input": "[data-testid='conversation-compose-box-input']",
+    "send_button": "[data-testid='send']"
+  },
+  "features": {
+    "supports_replies": true,
+    "supports_media": true,
+    "supports_reactions": true
+  }
+}

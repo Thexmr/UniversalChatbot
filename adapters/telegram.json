@@ -1,0 +1,16 @@
+{
+  "domain": "web.telegram.org",
+  "name": "Telegram Web",
+  "selectors": {
+    "chat_container": ".chat-info, .sidebar-header",
+    "messages": ".bubble, .message",
+    "message_text": ".message-text, .text-content",
+    "input": ".input-message-input, [contenteditable='true']",
+    "send_button": ".btn-send-message, .ico-send"
+  },
+  "features": {
+    "supports_replies": true,
+    "supports_media": true,
+    "supports_reactions": true
+  }
+}
