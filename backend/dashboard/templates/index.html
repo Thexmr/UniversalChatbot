@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UniversalChatbot Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <style>
+        :root {
+            --sidebar-width: 250px;
+            --bg-dark: #1e1e2f;
+            --bg-card: #27293d;
+            --text-muted: #9a9a9a;
+            --accent: #0d6efd;
+            --success: #198754;
+            --warning: #ffc107;
+            --danger: #dc3545;
+        }
+        
+        body {
+            background-color: var(--bg-dark);
+            color: #fff;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+        
+        .navbar {
+            background-color: var(--bg-card) !important;
+            border-bottom: 1px solid #3d3d5c;
+        }
+        
+        .card {
+            background-color: var(--bg-card);
+            border: none;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        
+        .card-header {
+            background-color: transparent;
+            border-bottom: 1px solid #3d3d5c;
+            font-weight: 600;
+        }
+        
+        .stat-card {
+            padding: 1.5rem;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+        }
+        
+        .stat-card.sessions::before { background-color: var(--accent); }
+        .stat-card.messages::before { background-color: var(--success); }
+        .stat-card.llm::before { background-color: var(--warning); }
+        
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            margin: 0;
+        }
+        
+        .stat-label {
+            color: var(--text-muted);
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .log-container {
+            height: 500px;
+            overflow-y: auto;
+            font-family: "Consolas", "Monaco", monospace;
+            font-size: 0.85rem;
+        }
+        
+        .log-entry {
+            padding: 8px 12px;
+            border-bottom: 1px solid #3d3d5c;
+            transition: background-color 0.2s;
+        }
+        
+        .log-entry:hover {
+            background-color: rgba(255,255,255,0.05);
+        }
+        
+        .log-time {
+            color: var(--text-muted);
+            font-size: 0.75rem;
+        }
+        
+        .log-level {
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .log-level-INFO { background-color: var(--accent); }
+        .log-level-DEBUG { background-color: #6c757d; }
+        .log-level-WARNING { background-color: var(--warning); color: #000; }
+        .log-level-ERROR { background-color: var(--danger); }
+        
+        .log-component {
+            color: var(--accent);
+            font-size: 0.75rem;
+        }
+        
+        .log-message {
+            margin-top: 4px;
+            color: #e0e0e0;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-online {
+            background-color: var(--success);
+            box-shadow: 0 0 10px var(--success);
+        }
+        
+        .status-offline {
+            background-color: var(--danger);
+        }
+        
+        .session-item {
+            background-color: rgba(255,255,255,0.05);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 8px;
+        }
+        
+        .session-id {
+            font-family: monospace;
+            font-size: 0.85rem;
+            color: var(--accent);
+        }
+        
+        .refresh-btn {
+            transition: transform 0.3s;
+        }
+        
+        .refresh-btn.spinning {
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        .connection-status {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            z-index: 1000;
+        }
+        
+        .connection-status.connected {
+            background-color: var(--success);
+        }
+        
+        .connection-status.disconnected {
+            background-color: var(--danger);
+        }
+        
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: var(--bg-dark);
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #3d3d5c;
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">
+                <i class="bi bi-robot"></i> UniversalChatbot
+            </a>
+            <span class="navbar-text">
+                <span class="status-indicator status-online"></span>
+                Dashboard
+            </span>
+        </div>
+    </nav>
+
+    <div class="container-fluid py-4">
+        <div class="row g-4">
+            <!-- Stats Cards -->
+            <div class="col-12">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <div class="card stat-card sessions">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <span class="stat-label">Active Sessions</span>
+                                    <p class="stat-value" id="stat-sessions">0</p>
+                                </div>
+                                <i class="bi bi-people-fill fs-2 text-muted"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card stat-card messages">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <span class="stat-label">Messages Today</span>
+                                    <p class="stat-value" id="stat-messages">0</p>
+                                </div>
+                                <i class="bi bi-chat-dots-fill fs-2 text-muted"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card stat-card llm">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <span class="stat-label">LLM Status</span>
+                                    <p class="stat-value" id="stat-llm">
+                                        <i class="bi bi-check-circle-fill text-success"></i>
+                                    </p>
+                                </div>
+                                <i class="bi bi-cpu-fill fs-2 text-muted"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Live Logs -->
+            <div class="col-lg-8">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span><i class="bi bi-terminal"></i> Live Logs</span>
+                        <div>
+                            <button class="btn btn-sm btn-outline-secondary" id="refreshLogs">
+                                <i class="bi bi-arrow-clockwise"></i>
+                            </button>
+                            <span class="badge bg-success" id="live-indicator">LIVE</span>
+                        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="log-container" id="logContainer">
+                            <div class="p-3 text-center text-muted">
+                                <i class="bi bi-hourglass-split"></i> Loading logs...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Active Sessions -->
+            <div class="col-lg-4">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span><i class="bi bi-people"></i> Active Sessions</span>
+                        <button class="btn btn-sm btn-outline-secondary" id="refreshSessions">
+                            <i class="bi bi-arrow-clockwise"></i>
+                        </button>
+                    </div>
+                    <div class="card-body" id="sessionsContainer">
+                        <div class="text-center text-muted p-3">
+                            <i class="bi bi-hourglass-split"></i> Loading sessions...
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Connection Status -->
+    <div class="connection-status disconnected" id="connectionStatus">
+        <i class="bi bi-wifi-off"></i> Disconnected
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.socket.io/4.5.0/socket.io.min.js"></script>
+    <script>
+        // Socket.IO connection
+        const socket = io();
+        
+        // Connection status
+        socket.on('connect', () => {
+            document.getElementById('connectionStatus').className = 'connection-status connected';
+            document.getElementById('connectionStatus').innerHTML = '<i class="bi bi-wifi"></i> Connected';
+        });
+        
+        socket.on('disconnect', () => {
+            document.getElementById('connectionStatus').className = 'connection-status disconnected';
+            document.getElementById('connectionStatus').innerHTML = '<i class="bi bi-wifi-off"></i> Disconnected';
+        });
+        
+        // New log from WebSocket
+        socket.on('new_log', (log) => {
+            prependLogEntry(log);
+        });
+        
+        // Status message
+        socket.on('status', (data) => {
+            console.log('Dashboard status:', data.message);
+        });
+
+        // Elements
+        const logContainer = document.getElementById('logContainer');
+        const sessionsContainer = document.getElementById('sessionsContainer');
+        const refreshLogsBtn = document.getElementById('refreshLogs');
+        const refreshSessionsBtn = document.getElementById('refreshSessions');
+
+        // Format timestamp
+        function formatTime(timestamp) {
+            if (!timestamp) return 'N/A';
+            const date = new Date(timestamp);
+            return date.toLocaleTimeString();
+        }
+
+        // Format full timestamp
+        function formatDateTime(timestamp) {
+            if (!timestamp) return 'N/A';
+            const date = new Date(timestamp);
+            return date.toLocaleString();
+        }
+
+        // Create log entry HTML
+        function createLogEntry(log) {
+            const level = (log.level || 'INFO').toUpperCase();
+            const component = log.component || 'unknown';
+            const message = log.message || log.msg || JSON.stringify(log);
+            const timestamp = log.timestamp || log.time || new Date().toISOString();
+            
+            return `
+                <div class="log-entry">
+                    <div class="d-flex align-items-center gap-2 mb-1">
+                        <span class="log-time">${formatTime(timestamp)}</span>
+                        <span class="log-level log-level-${level}">${level}</span>
+                        <span class="log-component">
+                            <i class="bi bi-gear"></i> ${component}
+                        </span>
+                    </div>
+                    <div class="log-message">${message}</div>
+                </div>
+            `;
+        }
+
+        // Prepend new log (for realtime updates)
+        function prependLogEntry(log) {
+            const html = createLogEntry(log);
+            logContainer.insertAdjacentHTML('afterbegin', html);
+            
+            // Keep only last 100 entries
+            const entries = logContainer.querySelectorAll('.log-entry');
+            if (entries.length > 100) {
+                for (let i = 100; i < entries.length; i++) {
+                    entries[i].remove();
+                }
+            }
+        }
+
+        // Load logs
+        async function loadLogs() {
+            try {
+                refreshLogsBtn.classList.add('spinning');
+                const response = await fetch('/api/logs');
+                const logs = await response.json();
+                
+                if (logs.length === 0) {
+                    logContainer.innerHTML = `
+                        <div class="p-3 text-center text-muted">
+                            <i class="bi bi-inbox"></i> No logs yet
+                        </div>
+                    `;
+                } else {
+                    // Reverse to show newest first
+                    const html = logs.reverse().map(createLogEntry).join('');
+                    logContainer.innerHTML = html;
+                }
+            } catch (error) {
+                logContainer.innerHTML = `
+                    <div class="p-3 text-center text-danger">
+                        <i class="bi bi-exclamation-triangle"></i> Failed to load logs: ${error.message}
+                    </div>
+                `;
+            } finally {
+                refreshLogsBtn.classList.remove('spinning');
+            }
+        }
+
+        // Load stats
+        async function loadStats() {
+            try {
+                const response = await fetch('/api/stats');
+                const stats = await response.json();
+                
+                document.getElementById('stat-sessions').textContent = stats.sessions || 0;
+                document.getElementById('stat-messages').textContent = stats.messages_today || 0;
+                
+                const llmStatusEl = document.getElementById('stat-llm');
+                if (stats.llm_status) {
+                    llmStatusEl.innerHTML = '<i class="bi bi-check-circle-fill text-success"></i>';
+                } else {
+                    llmStatusEl.innerHTML = '<i class="bi bi-x-circle-fill text-danger"></i>';
+                }
+            } catch (error) {
+                console.error('Failed to load stats:', error);
+            }
+        }
+
+        // Load sessions
+        async function loadSessions() {
+            try {
+                refreshSessionsBtn.classList.add('spinning');
+                const response = await fetch('/api/sessions');
+                const sessions = await response.json();
+                
+                if (sessions.length === 0) {
+                    sessionsContainer.innerHTML = `
+                        <div class="text-center text-muted p-3">
+                            <i class="bi bi-inbox"></i> No active sessions
+                        </div>
+                    `;
+                } else {
+                    sessionsContainer.innerHTML = sessions.map(session => `
+                        <div class="session-item">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <span class="session-id text-truncate" style="max-width: 150px;" title="${session.id}">
+                                    ${session.id.substring(0, 12)}...
+                                </span>
+                                <span class="badge bg-info">
+                                    ${session.message_count} msgs
+                                </span>
+                            </div>
+                            <div class="mt-2 text-muted small">
+                                <div><i class="bi bi-clock"></i> ${formatDateTime(session.created_at)}</div>
+                                <div class="mt-1"><i class="bi bi-platform-nintendo"></i> ${session.platform}</div>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            } catch (error) {
+                sessionsContainer.innerHTML = `
+                    <div class="text-center text-danger p-3">
+                        <i class="bi bi-exclamation-triangle"></i> Failed to load sessions
+                    </div>
+                `;
+            } finally {
+                refreshSessionsBtn.classList.remove('spinning');
+            }
+        }
+
+        // Refresh button handlers
+        refreshLogsBtn.addEventListener('click', loadLogs);
+        refreshSessionsBtn.addEventListener('click', loadSessions);
+
+        // Auto-refresh every 5 seconds
+        setInterval(() => {
+            loadStats();
+            loadSessions();
+        }, 5000);
+
+        // Initial load
+        loadLogs();
+        loadStats();
+        loadSessions();
+    </script>
+</body>
+</html>
