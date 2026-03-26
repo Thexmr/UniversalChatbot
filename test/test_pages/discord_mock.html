@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Discord - Mock Test Page</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: "Whitney", "Helvetica Neue", Helvetica, Arial, sans-serif;
+            background: #36393f;
+            color: #dcddde;
+            height: 100vh;
+            display: flex;
+            overflow: hidden;
+        }
+        
+        .server-sidebar {
+            width: 72px;
+            background: #202225;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 12px 0;
+        }
+        
+        .server-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: #5865f2;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-weight: bold;
+        }
+        
+        .channel-sidebar {
+            width: 240px;
+            background: #2f3136;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .channel-header {
+            background: #2f3136;
+            padding: 16px;
+            border-bottom: 1px solid #202225;
+            font-weight: bold;
+        }
+        
+        .channel-list {
+            flex: 1;
+            padding: 16px;
+        }
+        
+        .channel-item {
+            padding: 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            color: #96989d;
+        }
+        
+        .channel-item:hover {
+            background: #34373c;
+            color: #dcddde;
+        }
+        
+        .channel-item.active {
+            background: #393c43;
+            color: #fff;
+        }
+        
+        .main-chat {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #36393f;
+        }
+        
+        .chat-header {
+            background: #36393f;
+            padding: 16px;
+            border-bottom: 1px solid #202225;
+            display: flex;
+            align-items: center;
+        }
+        
+        .chat-header h2 {
+            font-size: 16px;
+            font-weight: bold;
+        }
+        
+        /* Discord-style chat content area */
+        .chatContent-3AMOQk {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+        }
+        
+        /* Discord-style message list items */
+        .messageListItem-ZZ7v6g {
+            display: flex;
+            padding: 8px 16px;
+            margin-left: -16px;
+            margin-right: -16px;
+        }
+        
+        .messageListItem-ZZ7v6g:hover {
+            background: rgba(50, 53, 59, 0.5);
+        }
+        
+        .message-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #5865f2;
+            margin-right: 16px;
+            flex-shrink: 0;
+        }
+        
+        .message-content {
+            flex: 1;
+        }
+        
+        /* Discord-style username */
+        .username-1A8OIy {
+            font-weight: 500;
+            color: #fff;
+            margin-right: 8px;
+        }
+        
+        /* Discord-style timestamp */
+        .timestamp-3ZCmNB {
+            font-size: 12px;
+            color: #72767d;
+        }
+        
+        /* Discord-style message content */
+        .messageContent-2qWWxC {
+            color: #dcddde;
+            font-size: 16px;
+            line-height: 1.375;
+            margin-top: 4px;
+        }
+        
+        .chat-input-container {
+            background: #36393f;
+            padding: 0 16px 24px;
+        }
+        
+        .chat-input-wrapper {
+            background: #40444b;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            padding: 11px 16px;
+        }
+        
+        /* Discord-style slate text area */
+        .slateTextArea-1j0ZXu {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: #dcddde;
+            font-size: 1rem;
+            line-height: 1.375;
+        }
+        
+        .slateTextArea-1j0ZXu::placeholder {
+            color: #72767d;
+        }
+        
+        /* Discord-style send icon */
+        .sendIcon-UO5oUA {
+            color: #b9bbbe;
+            cursor: pointer;
+            margin-left: 16px;
+        }
+        
+        .sendIcon-UO5oUA:hover {
+            color: #dcddde;
+        }
+        
+        /* Discord-style messages wrapper for MutationObserver */
+        .messagesWrapper-1sRNjr {
+            position: relative;
+        }
+        
+        /* Discord-style system message indicator */
+        .isSystemMessage-1NVXvF {
+            background: rgba(88, 101, 242, 0.1);
+        }
+        
+        /* Discord-style typing indicator */
+        .typingDots-1Yni75 {
+            display: flex;
+            align-items: center;
+            color: #72767d;
+            font-size: 14px;
+            padding: 8px 16px;
+        }
+        
+        .typing-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #72767d;
+            margin: 0 2px;
+            animation: typing 1.4s infinite;
+        }
+        
+        .typing-dot:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+        
+        .typing-dot:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+        
+        @keyframes typing {
+            0%, 60%, 100% { transform: translateY(0); }
+            30% { transform: translateY(-4px); }
+        }
+        
+        .platform-label {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: #5865f2;
+            color: #fff;
+            padding: 8px 16px;
+            border-radius: 4px;
+            font-weight: bold;
+            z-index: 1000;
+        }
+        
+        .instructions {
+            position: fixed;
+            bottom: 80px;
+            right: 10px;
+            background: #2f3136;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            max-width: 320px;
+            z-index: 1000;
+            border: 1px solid #40444b;
+        }
+        
+        .instructions h3 {
+            margin-bottom: 10px;
+            color: #fff;
+        }
+        
+        .instructions p {
+            color: #b9bbbe;
+            margin-bottom: 10px;
+        }
+        
+        .instructions code {
+            background: #202225;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 11px;
+            color: #00aff4;
+        }
+        
+        .instructions button {
+            margin-top: 10px;
+            margin-right: 5px;
+            padding: 8px 16px;
+            border: none;
+            background: #5865f2;
+            color: #fff;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .instructions button:hover {
+            background: #4752c4;
+        }
+    </style>
+</head>
+<body>
+    <div class="platform-label">MOCK: discord.com</div>
+    
+    <div class="server-sidebar">
+        <div class="server-icon">U</div>
+        <div class="server-icon" style="background: #3ba55d;">T1</div>
+        <div class="server-icon" style="background: #ed4245;">T2</div>
+    </div>
+    
+    <div class="channel-sidebar">
+        <div class="channel-header">UniversalChatbot</div>
+        <div class="channel-list">
+            <div class="channel-item active">
+                <span>💬</span><span style="margin-left: 8px;">general</span>
+            </div>
+            <div class="channel-item">
+                <span>💬</span><span style="margin-left: 8px;">dev-chat</span>
+            </div>
+            <div class="channel-item">
+                <span>💡</span><span style="margin-left: 8px;">ideas</span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="main-chat">
+        <div class="chat-header">
+            <span>💬</span><span style="margin-left: 8px;">general</span>
+        </div>
+        
+        <div class="chatContent-3AMOQk" id="chatContent">
+            <div class="messagesWrapper-1sRNjr" id="messagesWrapper">
+                <!-- Message 1 -->
+                <div class="messageListItem-ZZ7v6g" data-id="dmsg1">
+                    <div class="message-avatar"></div>
+                    <div class="message-content">
+                        <div>
+                            <span class="username-1A8OIy" style="color: #1abc9c;">DevUser</span>
+                            <time class="timestamp-3ZCmNB">Today at 10:30 AM</time>
+                        </div>
+                        <div class="messageContent-2qWWxC">
+                            Hey everyone! Testing the Discord adapter integration 🧪
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Message 2 -->
+                <div class="messageListItem-ZZ7v6g" data-id="dmsg2">
+                    <div class="message-avatar" style="background: #ed4245;"></div>
+                    <div class="message-content">
+                        <div>
+                            <span class="username-1A8OIy" style="color: #e91e63;">Alice</span>
+                            <time class="timestamp-3ZCmNB">Today at 10:31 AM</time>
+                        </div>
+                        <div class="messageContent-2qWWxC">
+                            Great work! The dynamic selectors are working well with React.
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Message 3 -->
+                <div class="messageListItem-ZZ7v6g isSystemMessage-1NVXvF" data-id="dmsg3" data-is-author-self="true">
+                    <div class="message-avatar" style="background: #5865f2;"></div>
+                    <div class="message-content">
+                        <div>
+                            <span class="username-1A8OIy" style="color: #5865f2;">You</span>
+                            <time class="timestamp-3ZCmNB">Today at 10:32 AM</time>
+                        </div>
+                        <div class="messageContent-2qWWxC">
+                            Just pushed the generic adapter system! 🚀
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="chat-input-container">
+            <div class="chat-input-wrapper">
+                <input type="text" class="slateTextArea-1j0ZXu" id="messageInput" placeholder="Message #general..." />
+                <svg class="sendIcon-UO5oUA" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" onclick="sendDiscordMessage()">
+                    <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                </svg>
+            </div>
+        </div>
+    </div>
+    
+    <div class="instructions">
+        <h3>Discord Test Controls</h3>
+        <p>This is a mock Discord Web page for testing the UniversalChatbot extension.</p>
+        
+        <p><strong>CSS Selector Strategy:</strong></p>
+        <ul style="margin: 10px 0; padding-left: 20px;">
+            <li>Uses <code>[class*='name']</code> for dynamic React classes</li>
+            <li>MutationObserver on React re-renders</li>
+            <li>Direct DOM manipulation for input</li>
+        </ul>
+        
+        <button onclick="addDiscordMessage()">Add Message</button>
+        <button onclick="simulateTyping()">Simulate Typing</button>
+        <button onclick="clearDiscordMessages()">Clear</button>
+    </div>
+    
+    <script>
+        const discordMessages = [
+            { user: 'DevUser', color: '#1abc9c', text: 'The Discord selectors are tricky with dynamic classes!' },
+            { user: 'Alice', color: '#e91e63', text: 'Using [class*=""] works great for partial matching.' },
+            { user: 'Bob', color: '#f1c40f', text: 'MutationObserver catches React updates nicely.' },
+            { user: 'DevUser', color: '#1abc9c', text: 'The generic adapter system is really flexible 🎉' },
+            { user: 'Alice', color: '#e91e63', text: 'Platform detection works across all three adapters now.' },
+            { user: 'Charlie', color: '#f39c12', text: 'Let me test WhatsApp and Telegram too.' },
+        ];
+        
+        let msgIndex = 0;
+        let typingTimeout;
+        
+        function addDiscordMessage() {
+            const messagesWrapper = document.getElementById('messagesWrapper');
+            const msg = discordMessages[msgIndex % discordMessages.length];
+            
+            const messageEl = document.createElement('div');
+            messageEl.className = 'messageListItem-ZZ7v6g';
+            messageEl.setAttribute('data-id', 'dmsg_' + Date.now());
+            messageEl.innerHTML = `
+                <div class="message-avatar" style="background: ${msg.color};"></div>
+                <div class="message-content">
+                    <div>
+                        <span class="username-1A8OIy" style="color: ${msg.color};">${msg.user}</span>
+                        <time class="timestamp-3ZCmNB">${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</time>
+                    </div>
+                    <div class="messageContent-2qWWxC">${msg.text}</div>
+                </div>
+            `;
+            
+            messagesWrapper.appendChild(messageEl);
+            document.getElementById('chatContent').scrollTop = document.getElementById('chatContent').scrollHeight;
+            msgIndex++;
+        }
+        
+        function simulateTyping() {
+            const chatContent = document.getElementById('chatContent');
+            
+            // Check if typing indicator exists
+            let typingIndicator = document.querySelector('.typingDots-1Yni75');
+            if (typingIndicator) {
+                typingIndicator.remove();
+                clearTimeout(typingTimeout);
+            } else {
+                // Add typing indicator
+                typingIndicator = document.createElement('div');
+                typingIndicator.className = 'typingDots-1Yni75';
+                typingIndicator.innerHTML = `
+                    <span>DevUser is typing</span>
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                `;
+                chatContent.appendChild(typingIndicator);
+                chatContent.scrollTop = chatContent.scrollHeight;
+                
+                // Remove after 3 seconds
+                typingTimeout = setTimeout(() => {
+                    if (typingIndicator.parentNode) {
+                        typingIndicator.remove();
+                    }
+                }, 3000);
+            }
+        }
+        
+        function clearDiscordMessages() {
+            const messagesWrapper = document.getElementById('messagesWrapper');
+            const existing = Array.from(messagesWrapper.children);
+            existing.slice(3).forEach(el => el.remove());
+            msgIndex = 0;
+        }
+        
+        function sendDiscordMessage() {
+            const input = document.getElementById('messageInput');
+            const text = input.value.trim();
+            
+            if (!text) return;
+            
+            const messagesWrapper = document.getElementById('messagesWrapper');
+            const messageEl = document.createElement('div');
+            messageEl.className = 'messageListItem-ZZ7v6g isSystemMessage-1NVXvF';
+            messageEl.setAttribute('data-id', 'own_dmsg_' + Date.now());
+            messageEl.setAttribute('data-is-author-self', 'true');
+            messageEl.innerHTML = `
+                <div class="message-avatar" style="background: #5865f2;"></div>
+                <div class="message-content">
+                    <div>
+                        <span class="username-1A8OIy" style="color: #5865f2;">You</span>
+                        <time class="timestamp-3ZCmNB">${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</time>
+                    </div>
+                    <div class="messageContent-2qWWxC">${text}</div>
+                </div>
+            `;
+            
+            messagesWrapper.appendChild(messageEl);
+            document.getElementById('chatContent').scrollTop = document.getElementById('chatContent').scrollHeight;
+            input.value = '';
+        }
+        
+        // Handle Enter key
+        document.getElementById('messageInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendDiscordMessage();
+            }
+        });
+        
+        // Auto-add messages every 15 seconds
+        setInterval(() => {
+            if (Math.random() > 0.6) {
+                addDiscordMessage();
+            }
+        }, 15000);
+    </script>
+</body>
+</html>

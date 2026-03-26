@@ -1,0 +1,26 @@
+{
+  "name": "Generic Chat Platform",
+  "domain": "*",
+  "selectors": {
+    "chat_container": "[data-chat], .chat-container, .messages-container, #chat",
+    "messages": ".message, [data-message], .msg",
+    "message_text": ".message-text, .msg-content, [data-text], p",
+    "message_author": ".author, .sender, .username, [data-author]",
+    "message_timestamp": "time, .timestamp, [data-time]",
+    "own_message_indicator": ".own, .me, .outgoing, [data-own]",
+    "input": "[contenteditable='true'], textarea, [data-input]",
+    "send_button": "[data-send], .send, button[type='submit']",
+    "typing_indicator": ".typing, [data-typing]"
+  },
+  "observers": {
+    "list_mutation": ".messages, .chat-list, [data-messages]",
+    "new_message_class": ".message"
+  },
+  "features": {
+    "supports_replies": false,
+    "supports_media": false,
+    "supports_reactions": false,
+    "uses_react": false,
+    "dynamic_classes": false
+  }
+}

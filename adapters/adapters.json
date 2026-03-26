@@ -1,0 +1,6 @@
+{
+  "web.whatsapp.com": "whatsapp.json",
+  "web.telegram.org": "telegram.json",
+  "discord.com": "discord.json",
+  "generic": "generic.json"
+}

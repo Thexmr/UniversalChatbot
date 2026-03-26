@@ -1,0 +1,27 @@
+{
+  "name": "Discord",
+  "domain": "discord.com",
+  "url_patterns": ["discord.com/app", "discord.com/channels/"],
+  "selectors": {
+    "chat_container": "[class*='chatContent']",
+    "messages": "[class*='messageListItem']",
+    "message_text": "[class*='messageContent']",
+    "message_author": "[class*='username']",
+    "message_timestamp": "time",
+    "own_message_indicator": "[class*='isSystemMessage']",
+    "input": "[class*='slateTextArea']",
+    "send_button": "[class*='sendIcon']",
+    "typing_indicator": "[class*='typingDots']"
+  },
+  "observers": {
+    "list_mutation": "[class*='messagesWrapper']",
+    "new_message_class": "[class*='messageListItem']"
+  },
+  "features": {
+    "supports_replies": true,
+    "supports_media": true,
+    "supports_reactions": true,
+    "uses_react": true,
+    "dynamic_classes": true
+  }
+}

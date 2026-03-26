@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WhatsApp Web - Mock Test Page</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: #f0f2f5;
+            height: 100vh;
+            display: flex;
+        }
+        
+        .sidebar {
+            width: 30%;
+            background: #fff;
+            border-right: 1px solid #e0e0e0;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .sidebar-header {
+            background: #f0f2f5;
+            padding: 15px;
+            display: flex;
+            align-items: center;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .profile-pic {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #ddd;
+            margin-right: 10px;
+        }
+        
+        .chat-list {
+            flex: 1;
+            overflow-y: auto;
+        }
+        
+        .chat-item {
+            padding: 15px;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .chat-item:hover {
+            background: #f5f5f5;
+        }
+        
+        .chat-item.active {
+            background: #e8f5e9;
+        }
+        
+        .chat-info {
+            flex: 1;
+            margin-left: 10px;
+        }
+
+        /* Simulate data-testid='chat-list' */
+        [data-testid="chat-list"] {
+            flex: 1;
+        }
+        
+        .chat-name {
+            font-weight: 600;
+            color: #1a1a1a;
+        }
+        
+        .chat-preview {
+            font-size: 14px;
+            color: #666;
+            margin-top: 3px;
+        }
+        
+        .main-chat {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200"><rect fill="%23f8f9fa" width="200" height="200"/></svg>');
+        }
+        
+        .chat-header {
+            background: #f0f2f5;
+            padding: 15px;
+            display: flex;
+            align-items: center;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* WhatsApp-style message with data-testid */
+        [data-testid="msg-container"] {
+            max-width: 70%;
+            padding: 8px 12px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            position: relative;
+        }
+        
+        .message-in {
+            background: #fff;
+            align-self: flex-start;
+            box-shadow: 0 1px 0.5px rgba(0,0,0,0.13);
+        }
+        
+        .message-out {
+            background: #d9fdd3;
+            align-self: flex-end;
+            box-shadow: 0 1px 0.5px rgba(0,0,0,0.13);
+        }
+        
+        .message-sender {
+            font-size: 12px;
+            color: #1f7aec;
+            margin-bottom: 4px;
+            font-weight: 600;
+        }
+        
+        .message-text {
+            font-size: 14px;
+            color: #1a1a1a;
+            word-wrap: break-word;
+        }
+        
+        /* WhatsApp-style selectable-text class */
+        .selectable-text {
+            user-select: text;
+        }
+        
+        .message-meta {
+            font-size: 11px;
+            color: #999;
+            text-align: right;
+            margin-top: 4px;
+        }
+        
+        .chat-input {
+            background: #f0f2f5;
+            padding: 10px 15px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .input-container {
+            flex: 1;
+            background: #fff;
+            border-radius: 20px;
+            padding: 10px 15px;
+        }
+        
+        /* WhatsApp-style input with data-testid */
+        [data-testid="conversation-compose-box-input"] {
+            width: 100%;
+            border: none;
+            outline: none;
+            font-size: 15px;
+            font-family: inherit;
+        }
+        
+        .send-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #00a884;
+            border: none;
+            margin-left: 10px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        /* WhatsApp-style send button with data-testid */
+        [data-testid="send"] {
+            color: #fff;
+            font-size: 18px;
+        }
+        
+        .platform-label {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: #ff4d4d;
+            color: #fff;
+            padding: 8px 16px;
+            border-radius: 4px;
+            font-weight: bold;
+            z-index: 1000;
+        }
+        
+        .instructions {
+            position: fixed;
+            bottom: 80px;
+            right: 10px;
+            background: #fff;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            max-width: 300px;
+            z-index: 1000;
+        }
+        
+        .instructions h3 {
+            margin-bottom: 10px;
+            color: #333;
+        }
+        
+        .instructions code {
+            background: #f0f0f0;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 12px;
+        }
+        
+        .instructions button {
+            margin-top: 10px;
+            margin-right: 5px;
+            padding: 6px 12px;
+            border: none;
+            background: #00a884;
+            color: #fff;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .instructions button:hover {
+            background: #008f70;
+        }
+    </style>
+</head>
+<body>
+    <div class="platform-label">MOCK: web.whatsapp.com</div>
+    
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <div class="profile-pic"></div>
+            <span style="font-weight: 600;">Test User</span>
+        </div>
+        <div data-testid="chat-list" class="chat-list">
+            <div class="chat-item active">
+                <div class="profile-pic"></div>
+                <div class="chat-info">
+                    <div class="chat-name">Test Group</div>
+                    <div class="chat-preview">Last message preview...</div>
+                </div>
+            </div>
+            <div class="chat-item">
+                <div class="profile-pic"></div>
+                <div class="chat-info">
+                    <div class="chat-name">Alice</div>
+                    <div class="chat-preview">Hey there!</div>
+                </div>
+            </div>
+            <div class="chat-item">
+                <div class="profile-pic"></div>
+                <div class="chat-info">
+                    <div class="chat-name">Bob</div>
+                    <div class="chat-preview">See you soon</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="main-chat">
+        <div class="chat-header">
+            <div class="profile-pic"></div>
+            <span style="font-weight: 600;">Test Group</span>
+        </div>
+        
+        <div class="chat-messages" id="chatMessages">
+            <!-- Incoming message -->
+            <div data-testid="msg-container" class="message-in" data-id="msg1">
+                <div class="message-sender">Alice</div>
+                <div class="message-text selectable-text">Hello! This is a test message from Alice.</div>
+                <div class="message-meta">10:30 AM</div>
+            </div>
+            
+            <!-- Outgoing message -->
+            <div data-testid="msg-container" class="message-out" data-id="msg2">
+                <div class="message-text selectable-text">Hi Alice! This is my reply.</div>
+                <div class="message-meta">10:31 AM ✓✓</div>
+            </div>
+            
+            <!-- Incoming message -->
+            <div data-testid="msg-container" class="message-in" data-id="msg3">
+                <div class="message-sender">Bob</div>
+                <div class="message-text selectable-text">Great to see you all here!</div>
+                <div class="message-meta">10:32 AM</div>
+            </div>
+        </div>
+        
+        <div class="chat-input">
+            <div class="input-container">
+                <input type="text" data-testid="conversation-compose-box-input" placeholder="Type a message...">
+            </div>
+            <button class="send-btn" data-testid="send" onclick="sendTestMessage()">
+                <span>➤</span>
+            </button>
+        </div>
+    </div>
+    
+    <div class="instructions">
+        <h3>Test Controls</h3>
+        <p>This is a mock WhatsApp Web page for testing the UniversalChatbot extension.</p>
+        <p><strong>Selectors tested:</strong></p>
+        <ul style="font-size: 12px; margin: 10px 0;">
+            <li><code>[data-testid='chat-list']</code></li>
+            <li><code>[data-testid='msg-container']</code></li>
+            <li><code>[data-testid='conversation-compose-box-input']</code></li>
+            <li><code>[data-testid='send']</code></li>
+        </ul>
+        <button onclick="addTestMessage()">Add Test Message</button>
+        <button onclick="clearMessages()">Clear</button>
+    </div>
+    
+    <script>
+        const messages = [
+            { sender: 'Alice', text: 'How is everyone doing?' },
+            { sender: 'Bob', text: 'Working on the new feature!' },
+            { sender: 'Alice', text: 'The Discord adapter is almost ready 🎉' },
+            { sender: 'Charlie', text: 'Great work team!' },
+            { sender: 'Bob', text: 'Let me know when I can test it' },
+        ];
+        
+        let messageIndex = 0;
+        
+        function addTestMessage() {
+            const chatMessages = document.getElementById('chatMessages');
+            const msg = messages[messageIndex % messages.length];
+            
+            const messageEl = document.createElement('div');
+            messageEl.setAttribute('data-testid', 'msg-container');
+            messageEl.setAttribute('data-id', 'msg_' + Date.now());
+            messageEl.className = 'message-in';
+            messageEl.innerHTML = `
+                <div class="message-sender">${msg.sender}</div>
+                <div class="message-text selectable-text">${msg.text}</div>
+                <div class="message-meta">${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
+            `;
+            
+            chatMessages.appendChild(messageEl);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            messageIndex++;
+        }
+        
+        function clearMessages() {
+            const chatMessages = document.getElementById('chatMessages');
+            const existing = Array.from(chatMessages.children);
+            existing.slice(3).forEach(el => el.remove());
+            messageIndex = 0;
+        }
+        
+        function sendTestMessage() {
+            const input = document.querySelector('[data-testid="conversation-compose-box-input"]');
+            const text = input.value.trim();
+            
+            if (!text) return;
+            
+            const chatMessages = document.getElementById('chatMessages');
+            const messageEl = document.createElement('div');
+            messageEl.setAttribute('data-testid', 'msg-container');
+            messageEl.setAttribute('data-id', 'own_' + Date.now());
+            messageEl.className = 'message-out';
+            messageEl.innerHTML = `
+                <div class="message-text selectable-text">${text}</div>
+                <div class="message-meta">${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} ✓</div>
+            `;
+            
+            chatMessages.appendChild(messageEl);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            input.value = '';
+        }
+        
+        // Handle Enter key
+        document.querySelector('[data-testid="conversation-compose-box-input"]').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendTestMessage();
+            }
+        });
+        
+        // Auto-add messages every 10 seconds
+        setInterval(() => {
+            if (Math.random() > 0.7) {
+                addTestMessage();
+            }
+        }, 10000);
+    </script>
+</body>
+</html>

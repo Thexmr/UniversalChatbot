@@ -1,13 +1,9 @@
 // Content Script - runs on supported chat platforms
 // Detects chat windows, extracts messages, handles message sending
+// Supports generic adapter system for multiple platforms
 
 (function() {
   'use strict';
-
-  const PLATFORM_ADAPTERS = {
-    'web.whatsapp.com': 'whatsapp',
-    'web.telegram.org': 'telegram'
-  };
 
   let currentPlatform = null;
   let adapterConfig = null;
@@ -16,18 +12,40 @@
   let isEnabled = false;
   let lastMessages = new Set();
 
-  // Get the adapter name based on current domain
-  function getPlatformAdapter() {
-    const hostname = window.location.hostname;
-    return PLATFORM_ADAPTERS[hostname] || null;
+  // Platform detection with improved domain matching
+  function detectPlatform() {
+    const host = window.location.hostname;
+    if (host.includes('whatsapp')) return 'web.whatsapp.com';
+    if (host.includes('telegram')) return 'web.telegram.org';
+    if (host.includes('discord')) return 'discord.com';
+    return 'generic';
+  }
+
+  // Load platform config from adapters registry
+  async function loadAdapter(domain) {
+    try {
+      const adapters = await fetch(chrome.runtime.getURL('adapters/adapters.json'))
+        .then(r => r.json());
+      
+      const adapterFile = adapters[domain] || adapters['generic'];
+      const config = await fetch(chrome.runtime.getURL(`adapters/${adapterFile}`))
+        .then(r => r.json());
+      
+      return config;
+    } catch (error) {
+      console.error('[UCB] Failed to load adapter for domain:', domain, error);
+      return null;
+    }
   }
 
   // Initialize the content script
   async function init() {
-    currentPlatform = getPlatformAdapter();
-    if (!currentPlatform) {
-      console.log('[UCB] Platform not supported:', window.location.hostname);
-      return;
+    currentPlatform = detectPlatform();
+    
+    if (currentPlatform === 'generic') {
+      console.log('[UCB] Platform not specifically supported:', window.location.hostname);
+      // Optionally still try generic adapter
+      // return;
     }
 
     // Check if extension is enabled
@@ -39,15 +57,14 @@
       return;
     }
 
-    // Load adapter config
-    try {
-      const response = await fetch(chrome.runtime.getURL(`adapters/${currentPlatform}.json`));
-      adapterConfig = await response.json();
-      console.log('[UCB] Loaded adapter:', currentPlatform);
-    } catch (error) {
-      console.error('[UCB] Failed to load adapter:', error);
+    // Load adapter config using new generic system
+    adapterConfig = await loadAdapter(currentPlatform);
+    if (!adapterConfig) {
+      console.error('[UCB] Failed to load adapter config');
       return;
     }
+    
+    console.log('[UCB] Loaded adapter:', adapterConfig.name);
 
     // Check whitelist
     if (storage.enabledPlatforms && !storage.enabledPlatforms.includes(window.location.hostname)) {
@@ -101,10 +118,14 @@
       
       // Start observing the chat container specifically
       if (chatContainer && !chatObserver) {
-        chatObserver = new MutationObserver(() => {
+        const observerTarget = adapterConfig.selectors.list_mutation 
+          ? document.querySelector(adapterConfig.selectors.list_mutation) || chatContainer
+          : chatContainer;
+          
+        chatObserver = new MutationObserver((mutations) => {
           extractMessages();
         });
-        chatObserver.observe(chatContainer, {
+        chatObserver.observe(observerTarget, {
           childList: true,
           subtree: true
         });
@@ -131,6 +152,120 @@
     }
   }
 
+  // Check if message is from the current user
+  function isOwnMessage(msgEl) {
+    if (!adapterConfig) return false;
+
+    const platform = detectPlatform();
+
+    // Platform-specific checks
+    if (platform === 'web.whatsapp.com') {
+      return msgEl.classList.contains('message-out') || 
+             msgEl.getAttribute('data-testid')?.includes('outgoing') ||
+             msgEl.closest('[data-testid="outgoing-message"]') !== null;
+    }
+    
+    if (platform === 'web.telegram.org') {
+      return msgEl.classList.contains('bubble-out') ||
+             msgEl.classList.contains('is-out');
+    }
+    
+    if (platform === 'discord.com') {
+      // Discord uses React and dynamic classes
+      // Check for own message indicators
+      const ownIndicator = adapterConfig.selectors.own_message_indicator;
+      if (ownIndicator && msgEl.querySelector(ownIndicator)) {
+        return true;
+      }
+      // Check class patterns typical for own messages
+      return msgEl.classList.value.includes('groupStart') === false ||
+             msgEl.getAttribute('data-is-author-self') === 'true';
+    }
+    
+    // Generic fallback - check for common patterns
+    return msgEl.classList.contains('out') || 
+           msgEl.classList.contains('outgoing') ||
+           msgEl.classList.contains('me') ||
+           msgEl.classList.contains('own') ||
+           msgEl.closest('.outgoing, .me, .own') !== null;
+  }
+
+  // Extract sender name
+  function extractSender(msgEl, isOwn) {
+    if (isOwn) return 'self';
+    
+    if (adapterConfig && adapterConfig.selectors.message_author) {
+      const authorEl = msgEl.querySelector(adapterConfig.selectors.message_author);
+      if (authorEl) {
+        return authorEl.innerText.trim() || authorEl.getAttribute('aria-label') || 'unknown';
+      }
+    }
+    
+    // Generic fallback selectors
+    const selectors = [
+      '[data-testid="sender-name"]',
+      '.sender-name',
+      '.message-sender',
+      '.from_name',
+      '.author',
+      '[data-author]',
+      '[data-peer-id]'
+    ];
+    
+    for (const selector of selectors) {
+      const senderEl = msgEl.querySelector(selector) || 
+                       msgEl.closest('.message')?.querySelector(selector);
+      if (senderEl) {
+        return senderEl.innerText.trim() || 
+               senderEl.getAttribute('data-peer-id') || 
+               senderEl.getAttribute('data-author') || 
+               'unknown';
+      }
+    }
+    
+    return 'unknown';
+  }
+
+  // Extract timestamp
+  function extractTimestamp(msgEl) {
+    if (adapterConfig && adapterConfig.selectors.message_timestamp) {
+      const timeEl = msgEl.querySelector(adapterConfig.selectors.message_timestamp);
+      if (timeEl) {
+        const datetime = timeEl.getAttribute('datetime') || timeEl.innerText;
+        if (datetime) {
+          const parsed = new Date(datetime).getTime();
+          return isNaN(parsed) ? Date.now() : parsed;
+        }
+      }
+    }
+    
+    // Generic fallback
+    const timeEl = msgEl.querySelector('time, [datetime], .time, .timestamp, .message-time');
+    if (timeEl) {
+      const datetime = timeEl.getAttribute('datetime') || timeEl.innerText;
+      if (datetime) {
+        const parsed = new Date(datetime).getTime();
+        return isNaN(parsed) ? Date.now() : parsed;
+      }
+    }
+    return Date.now();
+  }
+
+  // Generate unique ID for message element
+  function generateMessageId(msgEl) {
+    // Try to find existing ID
+    const existingId = msgEl.getAttribute('data-id') || 
+                       msgEl.getAttribute('id') ||
+                       msgEl.getAttribute('data-message-id');
+    if (existingId) return existingId;
+    
+    // Generate from content and timestamp
+    const text = msgEl.innerText.substring(0, 50);
+    const timestamp = Date.now();
+    const random = Math.random().toString(36).substr(2, 9);
+    return `${text.substring(0, 20)}_${timestamp}_${random}`;
+  }
+
   // Extract messages from the chat
   function extractMessages() {
     if (!adapterConfig || !window.ucbChatOpen) return;
@@ -138,7 +273,7 @@
     const messageElements = document.querySelectorAll(adapterConfig.selectors.messages);
     
     messageElements.forEach((msgEl) => {
-      const messageId = msgEl.getAttribute('data-id') || msgEl.id || generateMessageId(msgEl);
+      const messageId = generateMessageId(msgEl);
       
       if (lastMessages.has(messageId)) return;
       
@@ -184,70 +319,6 @@
     });
   }
 
-  // Check if message is from the current user
-  function isOwnMessage(msgEl) {
-    // Platform-specific checks
-    if (currentPlatform === 'whatsapp') {
-      return msgEl.classList.contains('message-out') || 
-             msgEl.getAttribute('data-testid')?.includes('outgoing') ||
-             msgEl.closest('[data-testid="outgoing-message"]') !== null;
-    }
-    
-    if (currentPlatform === 'telegram') {
-      return msgEl.classList.contains('bubble-out') ||
-             msgEl.classList.contains('is-out');
-    }
-    
-    // Generic fallback - check for common patterns
-    return msgEl.classList.contains('out') || 
-           msgEl.classList.contains('outgoing') ||
-           msgEl.classList.contains('me') ||
-           msgEl.classList.contains('own');
-  }
-
-  // Extract sender name
-  function extractSender(msgEl, isOwn) {
-    if (isOwn) return 'self';
-    
-    // Try to find sender element
-    const selectors = [
-      '[data-testid="sender-name"]',
-      '.sender-name',
-      '.message-sender',
-      '.from_name',
-      '[data-peer-id]'
-    ];
-    
-    for (const selector of selectors) {
-      const senderEl = msgEl.querySelector(selector) || 
-                       msgEl.closest('.message')?.querySelector(selector);
-      if (senderEl) {
-        return senderEl.innerText.trim() || senderEl.getAttribute('data-peer-id') || 'unknown';
-      }
-    }
-    
-    return 'unknown';
-  }
-
-  // Extract timestamp
-  function extractTimestamp(msgEl) {
-    const timeEl = msgEl.querySelector('time, [datetime], .time, .timestamp, .message-time');
-    if (timeEl) {
-      const datetime = timeEl.getAttribute('datetime') || timeEl.innerText;
-      if (datetime) {
-        return new Date(datetime).getTime() || Date.now();
-      }
-    }
-    return Date.now();
-  }
-
-  // Generate unique ID for message element
-  function generateMessageId(msgEl) {
-    const text = msgEl.innerText.substring(0, 50);
-    const timestamp = Date.now();
-    return `${text}_${timestamp}`;
-  }
-
   // Send a message to the chat
   async function sendMessage(text) {
     if (!adapterConfig || !window.ucbChatOpen) {
@@ -264,12 +335,22 @@
     // Focus input
     inputEl.focus();
     
-    // Set text
-    inputEl.innerText = text;
+    // Handle different input types
+    if (inputEl.isContentEditable) {
+      // ContentEditable element (Discord, etc.)
+      inputEl.innerText = text;
+      inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+    } else {
+      // Regular input/textarea
+      inputEl.value = text;
+      inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+      inputEl.dispatchEvent(new Event('change', { bubbles: true }));
+    }
     
-    // Trigger input event
-    inputEl.dispatchEvent(new Event('input', { bubbles: true }));
-    inputEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true }));
+    // Trigger input events for React and other frameworks
+    ['input', 'keydown', 'keyup', 'blur', 'focus'].forEach(eventType => {
+      inputEl.dispatchEvent(new Event(eventType, { bubbles: true }));
+    });
     
     // Click send button if available
     if (adapterConfig.selectors.send_button) {
@@ -281,12 +362,27 @@
     }
     
     // Fallback: trigger Enter key
-    inputEl.dispatchEvent(new KeyboardEvent('keydown', { 
+    const enterEvent = new KeyboardEvent('keydown', { 
       key: 'Enter', 
       code: 'Enter', 
       keyCode: 13,
-      bubbles: true 
-    }));
+      which: 13,
+      bubbles: true,
+      cancelable: true
+    });
+    inputEl.dispatchEvent(enterEvent);
+    
+    // If not prevented, also try keypress
+    if (!enterEvent.defaultPrevented) {
+      inputEl.dispatchEvent(new KeyboardEvent('keypress', { 
+        key: 'Enter', 
+        code: 'Enter', 
+        keyCode: 13,
+        charCode: 13,
+        which: 13,
+        bubbles: true 
+      }));
+    }
     
     return true;
   }
@@ -294,8 +390,10 @@
   // Listen for messages from background script
   chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === 'sendMessage') {
-      const success = sendMessage(request.text);
-      sendResponse({ success });
+      sendMessage(request.text).then(success => {
+        sendResponse({ success });
+      });
+      return true; // Async response
     }
     return true;
   });
