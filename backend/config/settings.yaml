@@ -1,0 +1,50 @@
+# UniversalChatbot Configuration Settings
+# Diese Datei enthält die Konfiguration für das Backend
+
+app:
+  name: "UniversalChatbot"
+  version: "1.0.0"
+  debug: false
+
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+  format: "json"
+  max_file_size: "10MB"
+  backup_count: 5
+  log_dir: "logs"
+
+llm:
+  default_model: "gpt-4"
+  fallback_model: "gpt-3.5-turbo"
+  temperature: 0.7
+  max_tokens: 1000
+  timeout: 30  # Sekunden
+
+chat:
+  max_context_messages: 10
+  session_timeout_hours: 24
+  auto_response: false
+
+native_messaging:
+  host_name: "com.universalchatbot.nativehost"
+  allowed_extensions:
+    - "*"  # Für Entwicklung - später ersetzen mit echter Extension ID
+
+adapters:
+  whatsapp:
+    enabled: true
+    auto_send: false
+    message_formatting: true
+    emoji_support: true
+  
+  telegram:
+    enabled: false
+  
+  discord:
+    enabled: false
+
+security:
+  max_message_size: 1048576  # 1MB
+  rate_limit_per_minute: 60
+  allowed_origins:
+    - "chrome-extension://*"
