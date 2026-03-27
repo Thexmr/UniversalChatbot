@@ -6,9 +6,33 @@ document.addEventListener('DOMContentLoaded', async () => {
   const nativeStatusText = document.getElementById('nativeStatusText');
   const reconnectBtn = document.getElementById('reconnectBtn');
   const platformToggles = document.querySelectorAll('.platform-toggle');
+  const currentVersionEl = document.getElementById('currentVersion');
+  const checkForUpdateEl = document.getElementById('checkForUpdate');
+
+  // Update notification elements
+  const updateBanner = document.getElementById('updateBanner');
+  const updateVersionEl = document.getElementById('updateVersion');
+  const updateModal = document.getElementById('updateModal');
+  const modalCurrentVersion = document.getElementById('modalCurrentVersion');
+  const modalNewVersion = document.getElementById('modalNewVersion');
+  const updateModalBody = document.getElementById('updateModalBody');
+  const updateNowBtn = document.getElementById('updateNowBtn');
+  const updateLaterBtn = document.getElementById('updateLaterBtn');
+  const viewReleaseBtn = document.getElementById('viewReleaseBtn');
+
+  let updateInfo = null;
+
+  // Set current version
+  const manifest = chrome.runtime.getManifest();
+  currentVersionEl.textContent = manifest.version;
 
   // Load saved settings
-  const storage = await chrome.storage.local.get(['extensionEnabled', 'enabledPlatforms']);
+  const storage = await chrome.storage.local.get([
+    'extensionEnabled', 
+    'enabledPlatforms',
+    'hasUpdate',
+    'updateInfo'
+  ]);
   
   enableToggle.checked = storage.extensionEnabled !== false;
   
@@ -17,16 +41,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     toggle.checked = platforms.includes(toggle.dataset.platform);
   });
 
+  // Check for update status
+  if (storage.hasUpdate && storage.updateInfo) {
+    showUpdateBanner(storage.updateInfo);
+  }
+
   // Check native host status
   updateNativeStatus();
 
-  // Handle enable/disable toggle
+  // Event Listeners
   enableToggle.addEventListener('change', async () => {
     await chrome.storage.local.set({ extensionEnabled: enableToggle.checked });
     updateStatusText();
   });
 
-  // Handle platform toggles
   platformToggles.forEach(toggle => {
     toggle.addEventListener('change', async () => {
       const enabled = Array.from(platformToggles)
@@ -36,7 +64,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   });
 
-  // Handle reconnect button
   reconnectBtn.addEventListener('click', async () => {
     nativeStatus.className = 'status-dot connecting';
     nativeStatusText.textContent = 'Reconnecting...';
@@ -52,13 +79,169 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  // Handle open dashboard button
   const openDashboardBtn = document.getElementById('openDashboardBtn');
   openDashboardBtn.addEventListener('click', () => {
     chrome.tabs.create({ url: 'http://localhost:5000' });
   });
 
-  // Update native host status display
+  // Update banner click
+  updateBanner.addEventListener('click', () => {
+    showUpdateModal();
+  });
+
+  // Update modal actions
+  updateNowBtn.addEventListener('click', async () => {
+    updateNowBtn.disabled = true;
+    updateNowBtn.textContent = 'Updating...';
+    
+    try {
+      // Send message to background script to trigger update
+      const response = await chrome.runtime.sendMessage({ type: 'start_update' });
+      
+      if (response && response.success) {
+        updateModalBody.innerHTML = '<div style="color: #4CAF50;">✓ Update started! Restart the extension to apply changes.</div>';
+        updateNowBtn.textContent = 'Update Started';
+        
+        setTimeout(() => {
+          hideUpdateModal();
+          hideUpdateBanner();
+        }, 2000);
+      } else {
+        updateModalBody.innerHTML = '<div style="color: #f44336;">❌ Update failed. Please try manually from GitHub.</div>';
+        updateNowBtn.textContent = 'Update Failed';
+      }
+    } catch (error) {
+      // Fallback: open GitHub
+      chrome.tabs.create({ 
+        url: 'https://github.com/Thexmr/UniversalChatbot/releases/latest'
+      });
+    }
+  });
+
+  updateLaterBtn.addEventListener('click', () => {
+    hideUpdateModal();
+    chrome.storage.local.set({ updateDismissed: Date.now() });
+  });
+
+  viewReleaseBtn.addEventListener('click', () => {
+    if (updateInfo && updateInfo.url) {
+      chrome.tabs.create({ url: updateInfo.url });
+    }
+  });
+
+  // Check for updates link
+  checkForUpdateEl.addEventListener('click', async () => {
+    checkForUpdateEl.textContent = 'Checking...';
+    checkForUpdateEl.style.cursor = 'wait';
+    
+    try {
+      const hasUpdate = await manualCheckForUpdates();
+      if (hasUpdate) {
+        checkForUpdateEl.textContent = 'Update available!';
+      } else {
+        checkForUpdateEl.textContent = 'No updates found';
+        setTimeout(() => {
+          checkForUpdateEl.textContent = 'Check for updates';
+        }, 2000);
+      }
+    } catch (error) {
+      console.error('Manual check failed:', error);
+      checkForUpdateEl.textContent = 'Check failed';
+      setTimeout(() => {
+        checkForUpdateEl.textContent = 'Check for updates';
+      }, 2000);
+    } finally {
+      checkForUpdateEl.style.cursor = 'pointer';
+    }
+  });
+
+  // Functions
+  function showUpdateBanner(info) {
+    updateInfo = info;
+    updateVersionEl.textContent = info.version;
+    updateBanner.classList.remove('hidden');
+  }
+
+  function hideUpdateBanner() {
+    updateBanner.classList.add('hidden');
+  }
+
+  function showUpdateModal() {
+    if (!updateInfo) return;
+    
+    modalCurrentVersion.textContent = updateInfo.current || 'Current';
+    modalNewVersion.textContent = 'v' + updateInfo.version;
+    
+    // Format release notes
+    let notes = updateInfo.notes || 'Release notes not available.';
+    // Simple markdown cleanup
+    notes = notes.replace(/## /g, '<strong>').replace(/\n/g, '<br>');
+    updateModalBody.innerHTML = notes;
+    
+    updateModal.classList.add('active');
+  }
+
+  function hideUpdateModal() {
+    updateModal.classList.remove('active');
+    updateNowBtn.disabled = false;
+    updateNowBtn.textContent = 'Update Now';
+  }
+
+  async function manualCheckForUpdates() {
+    try {
+      const response = await fetch('https://api.github.com/repos/Thexmr/UniversalChatbot/releases/latest', {
+        headers: {
+          'Accept': 'application/vnd.github.v3+json',
+          'User-Agent': 'UniversalChatbot-Extension'
+        }
+      });
+      
+      if (!response.ok) throw new Error('Failed to fetch');
+      
+      const release = await response.json();
+      const latestVersion = release.tag_name.replace(/^v/, '');
+      const currentVersion = manifest.version;
+      
+      if (isNewerVersion(latestVersion, currentVersion)) {
+        const newUpdateInfo = {
+          version: latestVersion,
+          current: currentVersion,
+          url: release.html_url,
+          notes: release.body
+        };
+        
+        // Save to storage
+        await chrome.storage.local.set({
+          hasUpdate: true,
+          updateInfo: newUpdateInfo
+        });
+        
+        showUpdateBanner(newUpdateInfo);
+        return true;
+      }
+      
+      return false;
+      
+    } catch (error) {
+      console.error('Manual check failed:', error);
+      throw error;
+    }
+  }
+
+  function isNewerVersion(latest, current) {
+    const parseVersion = (v) => v.split('.').map(Number);
+    const latestParts = parseVersion(latest);
+    const currentParts = parseVersion(current);
+    
+    for (let i = 0; i < Math.max(latestParts.length, currentParts.length); i++) {
+      const l = latestParts[i] || 0;
+      const c = currentParts[i] || 0;
+      if (l > c) return true;
+      if (l < c) return false;
+    }
+    return false;
+  }
+
   async function updateNativeStatus() {
     try {
       const response = await chrome.runtime.sendMessage({ type: 'get_status' });
@@ -78,6 +261,5 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   function updateStatusText() {
     const isEnabled = enableToggle.checked;
-    // Additional status updates if needed
   }
 });

@@ -1,0 +1,120 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Get version from tag
+        id: get_version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Create release archives
+        run: |
+          VERSION=${{ steps.get_version.outputs.VERSION }}
+          
+          # Create source directory structure
+          mkdir -p dist/UniversalChatbot-${{ steps.get_version.outputs.VERSION }}
+          
+          # Copy files
+          cp -r backend extension adapters docs scripts \
+            CHANGELOG.md LICENSE README.md requirements.txt \
+            install.sh install.bat start.sh start.bat \
+            setup_unix.py setup_windows.py verify_setup.py \
+            manifest.json background.js content.js content-styles.css popup.css popup.html popup.js native-messaging.js \
+            dist/UniversalChatbot-${{ steps.get_version.outputs.VERSION }}/
+          
+          # Create VERSION file
+          echo "${{ steps.get_version.outputs.VERSION }}" > dist/UniversalChatbot-${{ steps.get_version.outputs.VERSION }}/backend/VERSION
+          
+          # Update manifest version
+          cd dist/UniversalChatbot-${{ steps.get_version.outputs.VERSION }}
+          python3 -c "
+import json
+with open('extension/manifest.json', 'r') as f:
+    manifest = json.load(f)
+manifest['version'] = '${{ steps.get_version.outputs.VERSION }}'
+with open('extension/manifest.json', 'w') as f:
+    json.dump(manifest, f, indent=2)
+"
+          
+          # Create archives
+          cd ../..
+          cd dist
+          zip -r UniversalChatbot-v${{ steps.get_version.outputs.VERSION }}.zip UniversalChatbot-${{ steps.get_version.outputs.VERSION }}
+          tar -czf UniversalChatbot-v${{ steps.get_version.outputs.VERSION }}.tar.gz UniversalChatbot-${{ steps.get_version.outputs.VERSION }}
+          
+          # Generate checksums
+          sha256sum UniversalChatbot-v${{ steps.get_version.outputs.VERSION }}.zip > checksums.txt
+          sha256sum UniversalChatbot-v${{ steps.get_version.outputs.VERSION }}.tar.gz >> checksums.txt
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: UniversalChatbot v${{ steps.get_version.outputs.VERSION }}
+          draft: false
+          prerelease: false
+          body: |
+            ## Changes in this release
+            
+            See [CHANGELOG.md](https://github.com/Thexmr/UniversalChatbot/blob/main/CHANGELOG.md) for detailed changes.
+            
+            ## Installation
+            
+            1. Download the appropriate archive for your system
+            2. Extract the archive
+            3. Run `install.sh` (Linux/Mac) or `install.bat` (Windows)
+            4. Start with `start.sh` or `start.bat`
+            
+            ## Auto-Update
+            
+            This version includes automatic update checking via the extension.
+
+      - name: Upload Release Assets
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./dist/UniversalChatbot-v${{ steps.get_version.outputs.VERSION }}.zip
+          asset_name: UniversalChatbot-v${{ steps.get_version.outputs.VERSION }}.zip
+          asset_content_type: application/zip
+
+      - name: Upload Tar Archive
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./dist/UniversalChatbot-v${{ steps.get_version.outputs.VERSION }}.tar.gz
+          asset_name: UniversalChatbot-v${{ steps.get_version.outputs.VERSION }}.tar.gz
+          asset_content_type: application/gzip
+
+      - name: Upload Checksums
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./dist/checksums.txt
+          asset_name: checksums-sha256.txt
+          asset_content_type: text/plain
