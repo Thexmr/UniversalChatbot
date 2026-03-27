@@ -19,8 +19,163 @@
     if (host.includes('telegram')) return 'web.telegram.org';
     if (host.includes('discord')) return 'discord.com';
     if (host.includes('slack')) return 'app.slack.com';
+    if (host.includes('teams.microsoft')) return 'teams.microsoft.com';
     return 'generic';
   }
+
+  // ==================== MS TEAMS SPECIFIC HANDLERS ====================
+
+  // Detect MS Teams chat type (Channel, Private Chat, Meeting Chat)
+  function detectTeamsChatType() {
+    const url = window.location.href;
+    const chatContainer = document.querySelector("[data-tid='chat-list']");
+    
+    if (!chatContainer) return 'unknown';
+    
+    // Check URL patterns for different chat types
+    if (url.includes('/channel/')) {
+      const channelName = document.querySelector("[data-tid='team-channel-name']")?.textContent?.trim();
+      return { type: 'channel', name: channelName || 'unknown' };
+    }
+    
+    if (url.includes('/chat/')) {
+      const chatName = document.querySelector("[data-tid='chat-title']")?.textContent?.trim();
+      return { type: 'private_chat', name: chatName || 'unknown' };
+    }
+    
+    if (url.includes('/l/meetup-join/') || url.includes('/meeting/')) {
+      const meetingTitle = document.querySelector("[data-tid='meeting-title']")?.textContent?.trim();
+      return { type: 'meeting_chat', name: meetingTitle || 'unknown' };
+    }
+    
+    // Fallback detection via DOM elements
+    const teamHeader = document.querySelector("[data-tid='team-header']");
+    if (teamHeader) {
+      return { type: 'channel', name: teamHeader.textContent?.trim() || 'unknown' };
+    }
+    
+    return { type: 'unknown', name: 'unknown' };
+  }
+
+  // Extract Teams message content with rich text support
+  function extractTeamsMessageContent(msgEl) {
+    const contentEl = msgEl.querySelector(".ui-chat__messagecontent");
+    if (!contentEl) return { text: '', html: '', has_mentions: false };
+    
+    // Get plain text
+    const text = contentEl.innerText || '';
+    
+    // Get HTML content for rich text analysis
+    const html = contentEl.innerHTML || '';
+    
+    // Check for mentions (@user)
+    const hasMentions = !!contentEl.querySelector("[data-tid='mention']");
+    const mentions = [...contentEl.querySelectorAll("[data-tid='mention']")].map(el => el.textContent);
+    
+    // Check for formatted text
+    const hasBold = !!contentEl.querySelector("strong, b");
+    const hasItalic = !!contentEl.querySelector("em, i");
+    const hasLinks = !!contentEl.querySelector("a");
+    
+    // Check for attachments/files
+    const hasAttachments = !!msgEl.querySelector("[data-tid='attachment-card']");
+    const attachments = [...msgEl.querySelectorAll("[data-tid='attachment-card'")].map(el => ({
+      name: el.getAttribute('data-filename') || 'unknown',
+      type: el.getAttribute('data-filetype') || 'unknown'
+    }));
+    
+    // Check if message is a reply
+    const isReply = !!msgEl.closest("[data-tid='thread-message']");
+    const threadId = msgEl.closest("[data-tid='thread-container']")?.getAttribute('data-thread-id');
+    
+    return {
+      text: text.trim(),
+      html: html,
+      has_mentions: hasMentions,
+      mentions: mentions,
+      has_bold: hasBold,
+      has_italic: hasItalic,
+      has_links: hasLinks,
+      has_attachments: hasAttachments,
+      attachments: attachments,
+      is_reply: isReply,
+      thread_id: threadId
+    };
+  }
+
+  // Send message to MS Teams (CKEditor specific handling)
+  async function sendTeamsMessage(text, options = {}) {
+    const inputEl = document.querySelector("[data-tid='ckeditor']");
+    if (!inputEl) {
+      console.error('[UCB] Teams CKEditor input not found');
+      return false;
+    }
+    
+    // Find the contenteditable element inside CKEditor
+    const editorEl = inputEl.querySelector("[contenteditable='true']") || inputEl;
+    
+    if (!editorEl.isContentEditable) {
+      console.error('[UCB] Teams editor element is not contenteditable');
+      return false;
+    }
+    
+    // Focus the editor
+    editorEl.focus();
+    
+    // Clear existing content
+    editorEl.innerHTML = '';
+    
+    // Insert the message as HTML (Teams supports rich text)
+    if (options.html) {
+      editorEl.innerHTML = options.html;
+    } else if (options.preserve_formatting) {
+      // Convert newlines to <br> for Teams
+      editorEl.innerHTML = text.replace(/\n/g, '<br>');
+    } else {
+      editorEl.innerText = text;
+    }
+    
+    // Trigger React input events
+    const inputEvent = new Event('input', { bubbles: true, cancelable: true });
+    editorEl.dispatchEvent(inputEvent);
+    
+    // Trigger keydown for React state update
+    editorEl.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true }));
+    editorEl.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true }));
+    
+    // Wait for Teams to process
+    await new Promise(resolve => setTimeout(resolve, 50));
+    
+    // Click send button if available
+    const sendBtn = document.querySelector("[data-tid='send-message-button']");
+    if (sendBtn && !sendBtn.disabled) {
+      sendBtn.click();
+      return true;
+    }
+    
+    // Fallback: Ctrl+Enter to send
+    editorEl.dispatchEvent(new KeyboardEvent('keydown', {
+      key: 'Enter',
+      code: 'Enter',
+      keyCode: 13,
+      ctrlKey: true,
+      bubbles: true
+    }));
+    
+    return true;
+  }
+
+  // Check if Teams presence/typing indicator is active
+  function checkTeamsTypingIndicator() {
+    const typingEl = document.querySelector('.ui-chat__typing-indicator');
+    if (typingEl) {
+      const typingUsers = [...typingEl.querySelectorAll("[data-tid='typing-user-name'")].map(el => el.textContent);
+      return { is_typing: true, users: typingUsers };
+    }
+    return { is_typing: false, users: [] };
+  }
+
+  // ==================== END MS TEAMS HANDLERS ====================
 
   // Shadow DOM query helper - needed for platforms like Slack
   function queryShadowDOM(selector, shadowHost) {
@@ -252,20 +407,19 @@
         }
       }
       
-      // Send Slack-specific chat info
+      // Send platform-specific chat info
+      let chatInfo = null;
       if (currentPlatform === 'app.slack.com') {
-        const chatInfo = detectSlackChatType();
-        chrome.runtime.sendMessage({
-          type: 'chat_opened',
-          platform: currentPlatform,
-          chatInfo: chatInfo
-        });
-      } else {
-        chrome.runtime.sendMessage({
-          type: 'chat_opened',
-          platform: currentPlatform
-        });
+        chatInfo = detectSlackChatType();
+      } else if (currentPlatform === 'teams.microsoft.com') {
+        chatInfo = detectTeamsChatType();
       }
+      
+      chrome.runtime.sendMessage({
+        type: 'chat_opened',
+        platform: currentPlatform,
+        chatInfo: chatInfo
+      });
       
     } else if (!isOpen && window.ucbChatOpen) {
       window.ucbChatOpen = false;
@@ -332,6 +486,28 @@
         const isFromSelf = msgEl.getAttribute('data-from-me') === 'true' ||
                           msgEl.querySelector('[data-qa="message-sent"]') !== null;
         return isFromSelf;
+      }
+      return false;
+    }
+    
+    if (platform === 'teams.microsoft.com') {
+      // Teams own message detection
+      // Teams uses data-tid='message-from-me' for own messages
+      if (msgEl.querySelector("[data-tid='message-from-me']")) {
+        return true;
+      }
+      if (msgEl.getAttribute('data-tid')?.includes('from-me')) {
+        return true;
+      }
+      // Check for own message class patterns
+      if (msgEl.classList.contains('ui-chat__message--self') ||
+          msgEl.classList.contains('ui-chat__message--own')) {
+        return true;
+      }
+      // Check parent container for self indicator
+      const parentEl = msgEl.closest("[data-tid='message-container']");
+      if (parentEl?.getAttribute('data-is-self') === 'true') {
+        return true;
       }
       return false;
     }
@@ -482,6 +658,25 @@
         }
       }
       
+      // Add Teams-specific metadata with rich content extraction
+      if (currentPlatform === 'teams.microsoft.com') {
+        const teamsContent = extractTeamsMessageContent(msgEl);
+        if (teamsContent) {
+          messageData.html = teamsContent.html;
+          messageData.has_rich_text = teamsContent.has_bold || teamsContent.has_italic || teamsContent.has_links;
+          if (teamsContent.has_mentions) {
+            messageData.mentions = teamsContent.mentions;
+          }
+          if (teamsContent.has_attachments) {
+            messageData.attachments = teamsContent.attachments;
+          }
+          if (teamsContent.is_reply) {
+            messageData.is_reply = true;
+            messageData.thread_id = teamsContent.thread_id;
+          }
+        }
+      }
+      
       lastMessages.add(messageId);
       
       // Keep set size manageable
@@ -501,12 +696,17 @@
   }
 
   // Send a message to the chat
-  async function sendMessage(text) {
+  async function sendMessage(text, options = {}) {
     if (!adapterConfig || !window.ucbChatOpen) {
       console.error('[UCB] Cannot send message - chat not open');
       return false;
     }
     
+    // MS Teams specific CKEditor handling
+    if (currentPlatform === 'teams.microsoft.com') {
+      return await sendTeamsMessage(text, options);
+    }
+
     // Use deep query for Shadow DOM support
     const inputEl = adapterConfig.features?.uses_shadow_dom
       ? queryDeep(adapterConfig.selectors.input)

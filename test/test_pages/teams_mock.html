@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Microsoft Teams Web - Test Mock</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+      background: #f5f5f5;
+      color: #252424;
+      height: 100vh;
+      overflow: hidden;
+    }
+    
+    /* Top Navigation Bar */
+    .top-nav {
+      height: 48px;
+      background: #6264a7;
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      color: white;
+    }
+    
+    .teams-logo {
+      font-weight: 600;
+      font-size: 16px;
+      margin-right: 24px;
+    }
+    
+    .nav-items {
+      display: flex;
+      gap: 24px;
+    }
+    
+    .nav-item {
+      cursor: pointer;
+      padding: 4px 12px;
+      border-radius: 4px;
+    }
+    
+    .nav-item:hover {
+      background: rgba(255,255,255,0.1);
+    }
+    
+    .nav-item.active {
+      background: rgba(255,255,255,0.2);
+    }
+    
+    /* Main Layout */
+    .app-container {
+      display: flex;
+      height: calc(100vh - 48px);
+    }
+    
+    /* Left Sidebar (Teams & Channels) */
+    .left-sidebar {
+      width: 240px;
+      background: #f0f0f0;
+      border-right: 1px solid #e0e0e0;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .team-header {
+      padding: 16px;
+      border-bottom: 1px solid #e0e0e0;
+      font-weight: 600;
+      font-size: 14px;
+    }
+    
+    .sidebar-section {
+      padding: 8px 0;
+    }
+    
+    .section-header {
+      padding: 8px 16px;
+      font-size: 11px;
+      text-transform: uppercase;
+      color: #616161;
+      font-weight: 600;
+    }
+    
+    .channel-item {
+      padding: 6px 16px 6px 28px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .channel-item:hover {
+      background: #e0e0e0;
+    }
+    
+    .channel-item.active {
+      background: #c7c7c7;
+    }
+    
+    .channel-icon {
+      color: #616161;
+      font-size: 14px;
+    }
+    
+    .dm-section {
+      border-top: 1px solid #e0e0e0;
+      margin-top: 8px;
+    }
+    
+    .dm-item {
+      padding: 8px 16px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .dm-item:hover {
+      background: #e0e0e0;
+    }
+    
+    .presence-indicator {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #00b300;
+      display: inline-block;
+    }
+    
+    .presence-indicator.away {
+      background: #ffd700;
+    }
+    
+    .presence-indicator.busy {
+      background: #ff0000;
+    }
+    
+    .presence-indicator.offline {
+      background: #808080;
+    }
+    
+    /* Chat Area */
+    .chat-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: #faf9f8;
+    }
+    
+    /* Chat Header */
+    .chat-header {
+      height: 56px;
+      border-bottom: 1px solid #e0e0e0;
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      background: #faf9f8;
+    }
+    
+    .chat-title {
+      font-weight: 600;
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .chat-type-icon {
+      color: #6264a7;
+    }
+    
+    .chat-header-actions {
+      margin-left: auto;
+      display: flex;
+      gap: 16px;
+    }
+    
+    .header-btn {
+      padding: 8px;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+    
+    .header-btn:hover {
+      background: #e0e0e0;
+    }
+    
+    /* Messages Area */
+    .messages-container {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+    }
+    
+    .message-group {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 16px;
+      padding: 8px;
+      border-radius: 4px;
+    }
+    
+    .message-group:hover {
+      background: #f3f2f1;
+    }
+    
+    .avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: #6264a7;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: 600;
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+    
+    .avatar.self {
+      background: #0078d4;
+    }
+    
+    .message-content {
+      flex: 1;
+    }
+    
+    .message-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+    
+    .message-author {
+      font-weight: 600;
+      font-size: 14px;
+      color: #252424;
+    }
+    
+    .message-timestamp {
+      font-size: 11px;
+      color: #717171;
+    }
+    
+    .ui-chat__messagecontent {
+      font-size: 14px;
+      line-height: 1.5;
+      color: #252424;
+    }
+    
+    .ui-chat__messagecontent strong {
+      font-weight: 700;
+    }
+    
+    .ui-chat__messagecontent em {
+      font-style: italic;
+    }
+    
+    /* Rich Text Content */
+    .mention {
+      color: #6264a7;
+      background: rgba(98, 100, 167, 0.1);
+      padding: 0 4px;
+      border-radius: 3px;
+      font-weight: 500;
+    }
+    
+    .attachment-card {
+      margin-top: 8px;
+      padding: 12px;
+      background: white;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      max-width: 400px;
+    }
+    
+    .file-icon {
+      font-size: 32px;
+    }
+    
+    .file-info {
+      flex: 1;
+    }
+    
+    .file-name {
+      font-weight: 500;
+      font-size: 14px;
+    }
+    
+    .file-meta {
+      font-size: 12px;
+      color: #717171;
+      margin-top: 2px;
+    }
+    
+    /* Reply / Thread indicator */
+    .thread-indicator {
+      margin-top: 8px;
+      padding: 8px 12px;
+      background: #f3f2f1;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: #6264a7;
+      cursor: pointer;
+    }
+    
+    .thread-indicator:hover {
+      background: #e0e0e0;
+    }
+    
+    /* Typing Indicator */
+    .ui-chat__typing-indicator {
+      padding: 8px 20px;
+      font-size: 13px;
+      color: #717171;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .typing-dots {
+      display: flex;
+      gap: 3px;
+    }
+    
+    .typing-dot {
+      width: 6px;
+      height: 6px;
+      background: #717171;
+      border-radius: 50%;
+      animation: typing 1.4s infinite;
+    }
+    
+    .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+    
+    @keyframes typing {
+      0%, 60%, 100% { transform: scale(0.5); opacity: 0.5; }
+      30% { transform: scale(1); opacity: 1; }
+    }
+    
+    /* Input Area with CKEditor Simulation */
+    .input-area-container {
+      border-top: 1px solid #e0e0e0;
+      padding: 16px 20px;
+      background: #faf9f8;
+    }
+    
+    .input-toolbar {
+      display: flex;
+      gap: 4px;
+      padding: 4px 8px;
+      border-bottom: 1px solid #e0e0e0;
+      margin-bottom: 8px;
+    }
+    
+    .toolbar-btn {
+      padding: 6px 8px;
+      cursor: pointer;
+      border-radius: 4px;
+      font-size: 13px;
+      color: #616161;
+    }
+    
+    .toolbar-btn:hover {
+      background: #e0e0e0;
+    }
+    
+    .ckeditor-editor {
+      min-height: 60px;
+      max-height: 200px;
+      overflow-y: auto;
+      padding: 12px;
+      background: white;
+      border: 1px solid #e0e0e0;
+      border-radius: 4px;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    
+    .ckeditor-editor:focus {
+      outline: none;
+      border-color: #6264a7;
+    }
+    
+    .ckeditor-editor:empty:before {
+      content: "Type a new message";
+      color: #717171;
+    }
+    
+    /* Send Button */
+    .send-button-container {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 8px;
+    }
+    
+    .send-btn {
+      padding: 8px 20px;
+      background: #6264a7;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+    }
+    
+    .send-btn:hover {
+      background: #5a5c9c;
+    }
+    
+    .send-btn:disabled {
+      background: #c7c7c7;
+      cursor: not-allowed;
+    }
+    
+    /* Right Panel (Show/Hide for thread view) */
+    .right-panel {
+      width: 300px;
+      border-left: 1px solid #e0e0e0;
+      background: #faf9f8;
+      display: none;
+    }
+    
+    .right-panel.active {
+      display: block;
+    }
+    
+    /* Thread Reply Section */
+    .thread-replies {
+      margin-left: 52px;
+      margin-top: 8px;
+      padding-left: 12px;
+      border-left: 3px solid #e0e0e0;
+    }
+    
+    .reply-message {
+      padding: 8px 0;
+      font-size: 13px;
+    }
+    
+    .reply-author {
+      font-weight: 600;
+      margin-right: 6px;
+    }
+    
+    /* Meeting Chat Header */
+    .meeting-chat-banner {
+      background: #6264a7;
+      color: white;
+      padding: 8px 20px;
+      font-size: 13px;
+      display: none;
+    }
+    
+    .meeting-chat-banner.active {
+      display: block;
+    }
+    
+    /* Status Indicators */
+    .status-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: #00b300;
+    }
+    
+    /* Date Separator */
+    .date-separator {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 20px 0;
+    }
+    
+    .date-separator-line {
+      flex: 1;
+      height: 1px;
+      background: #e0e0e0;
+    }
+    
+    .date-separator-text {
+      padding: 0 16px;
+      font-size: 12px;
+      color: #717171;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+  </style>
+</head>
+<body>
+  <div class="top-nav">
+    <div class="teams-logo">&lt;&gt; Teams</div>
+    <div class="nav-items">
+      <div class="nav-item active">Activity</div>
+      <div class="nav-item">Chat</div>
+      <div class="nav-item">Teams</div>
+      <div class="nav-item">Calendar</div>
+      <div class="nav-item">Calls</div>
+      <div class="nav-item">Files</div>
+    </div>
+  </div>
+  
+  <div class="app-container">
+    <!-- Left Sidebar -->
+    <div class="left-sidebar">
+      <div class="team-header" data-tid="team-channel-name">Test Organization</div>
+      
+      <div class="sidebar-section">
+        <div class="section-header">Favorites</div>
+        <div class="channel-item">
+          <span class="channel-icon">#</span>
+          <span>general</span>
+        </div>
+        <div class="channel-item active">
+          <span class="channel-icon">#</span>
+          <span>development</span>
+        </div>
+      </div>
+      
+      <div class="sidebar-section">
+        <div class="section-header">Channels</div>
+        <div class="channel-item">
+          <span class="channel-icon">#</span>
+          <span>announcements</span>
+        </div>
+        <div class="channel-item">
+          <span class="channel-icon">#</span>
+          <span>random</span>
+        </div>
+      </div>
+      
+      <div class="sidebar-section dm-section">
+        <div class="section-header">Direct Messages</div>
+        <div class="dm-item">
+          <span class="presence-indicator"></span>
+          <span>Alice Johnson</span>
+        </div>
+        <div class="dm-item">
+          <span class="presence-indicator busy"></span>
+          <span>Bob Smith</span>
+        </div>
+        <div class="dm-item">
+          <span class="presence-indicator away"></span>
+          <span>Carol White</span>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Chat Container -->
+    <div class="chat-container" data-tid="chat-list">
+      <!-- Meeting Chat Banner -->
+      <div class="meeting-chat-banner" data-tid="meeting-chat">
+        &#128267; Meeting chat: "Weekly Standup" - 12 participants
+      </div>
+      
+      <!-- Chat Header -->
+      <div class="chat-header" data-tid="team-header">
+        <div class="chat-title">
+          <span class="chat-type-icon">#</span>
+          <span data-tid="chat-title">development</span>
+        </div>
+        <div class="chat-header-actions">
+          <div class="header-btn">&#128269;</div>
+          <div class="header-btn">&#128249;</div>
+          <div class="header-btn">&#8942;</div>
+        </div>
+      </div>
+      
+      <!-- Messages Area -->
+      <div class="messages-container">
+        <!-- Date Separator -->
+        <div class="date-separator">
+          <div class="date-separator-line"></div>
+          <div class="date-separator-text">Today</div>
+          <div class="date-separator-line"></div>
+        </div>
+        
+        <!-- Message 1: Regular message from Alice -->
+        <div class="message-group" data-tid="message" data-message-id="msg-001">
+          <div class="avatar">AJ</div>
+          <div class="message-content">
+            <div class="message-header">
+              <span class="message-author" data-tid="message-author-name">Alice Johnson</span>
+              <span class="message-timestamp" data-tid="message-timestamp">9:30 AM</span>
+            </div>
+            <div class="ui-chat__messagecontent">
+              Hey team! Has anyone reviewed the PR for the new authentication module?
+            </div>
+          </div>
+        </div>
+        
+        <!-- Message 2: Self message -->
+        <div class="message-group" data-tid="message" data-message-id="msg-002" data-tid="message-from-me">
+          <div class="avatar self">ME</div>
+          <div class="message-content" data-tid="message-from-me">
+            <div class="message-header">
+              <span class="message-author" data-tid="message-author-name">You</span>
+              <span class="message-timestamp" data-tid="message-timestamp">9:32 AM</span>
+            </div>
+            <div class="ui-chat__messagecontent">
+              Yes, I left some comments on it. <strong>Overall looks good</strong> but there are a few security concerns we should address.
+            </div>
+          </div>
+        </div>
+        
+        <!-- Message 3: Bob with rich text and mention -->
+        <div class="message-group" data-tid="message" data-message-id="msg-003">
+          <div class="avatar" style="background: #00b300;">BS</div>
+          <div class="message-content">
+            <div class="message-header">
+              <span class="message-author" data-tid="message-author-name">Bob Smith</span>
+              <span class="message-timestamp" data-tid="message-timestamp">9:35 AM</span>
+            </div>
+            <div class="ui-chat__messagecontent">
+              <span class="mention" data-tid="mention'>@John Doe</span> - Could you take a look at the thread implementation? The <em>async/await pattern</em> might need some <strong>refactoring</strong> for better error handling.
+            </div>
+            <!-- Thread indicator -->
+            <div class="thread-indicator" data-tid="thread-indicator">
+              &#128172; 3 replies
+            </div>
+          </div>
+        </div>
+        
+        <!-- Message 4: Message with file attachment -->
+        <div class="message-group" data-tid="message" data-message-id="msg-004">
+          <div class="avatar" style="background: #ff6b35;">CW</div>
+          <div class="message-content">
+            <div class="message-header">
+              <span class="message-author" data-tid="message-author-name">Carol White</span>
+              <span class="message-timestamp" data-tid="message-timestamp">9:40 AM</span>
+            </div>
+            <div class="ui-chat__messagecontent">
+              Here's the updated architecture diagram:
+            </div>
+            <div class="attachment-card" data-tid="attachment-card" data-filename="architecture_v2.png" data-filetype="image">
+              <div class="file-icon">&#128444;</div>
+              <div class="file-info">
+                <div class="file-name">architecture_v2.png</div>
+                <div class="file-meta">PNG • 2.4 MB</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Message 5: Thread reply -->
+        <div class="message-group" data-tid="message" data-message-id="msg-005" data-tid="thread-message" data-thread-id="thread-001">
+          <div class="avatar" style="background: #6264a7;">JD</div>
+          <div class="message-content">
+            <div class="message-header">
+              <span class="message-author" data-tid="message-author-name">John Doe</span>
+              <span class="message-timestamp" data-tid="message-timestamp">9:45 AM</span>
+            </div>
+            <div class="ui-chat__messagecontent" data-tid="thread-container" data-thread-id="thread-001">
+              Replying to the thread: Good point about the error handling! I'll refactor it to use <code>try/catch</code> blocks more consistently.
+            </div>
+          </div>
+        </div>
+        
+        <!-- Message 6: Message with link -->
+        <div class="message-group" data-tid="message" data-message-id="msg-006">
+          <div class="avatar">AJ</div>
+          <div class="message-content">
+            <div class="message-header">
+              <span class="message-author" data-tid="message-author-name">Alice Johnson</span>
+              <span class="message-timestamp" data-tid="message-timestamp">9:48 AM</span>
+            </div>
+            <div class="ui-chat__messagecontent">
+              Check out this article on <a href="https://example.com">best practices for async JavaScript</a>. Really helpful context for what we're doing.
+            </div>
+            <div class="attachment-card">
+              <div class="file-icon">&#128279;</div>
+              <div class="file-info">
+                <div class="file-name">example.com</div>
+                <div class="file-meta">Async JavaScript Best Practices</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Typing Indicator -->
+      <div class="ui-chat__typing-indicator" data-tid="chat-list">
+        <span>Alice is typing</span>
+        <div class="typing-dots">
+          <div class="typing-dot"></div>
+          <div class="typing-dot"></div>
+          <div class="typing-dot"></div>
+        </div>
+      </div>
+      
+      <!-- Input Area - CKEditor Simulation -->
+      <div class="input-area-container">
+        <div class="input-toolbar">
+          <div class="toolbar-btn">&#128512;</div>
+          <div class="toolbar-btn">&#128206;</div>
+          <div class="toolbar-btn">B</div>
+          <div class="toolbar-btn">I</div>
+          <div class="toolbar-btn">U</div>
+          <div class="toolbar-btn">@</div>
+          <div class="toolbar-btn">&#128247;</div>
+          <div class="toolbar-btn">&#128206;</div>
+        </div>
+        <div class="ckeditor-editor" data-tid="ckeditor" contenteditable="true" id="teams-editor"></div>
+        <div class="send-button-container">
+          <button class="send-btn" data-tid="send-message-button" onclick="sendTestMessage()">Send</button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Right Panel (Thread View - Hidden by default) -->
+    <div class="right-panel" id="thread-panel">
+      <div class="chat-header">
+        <div class="chat-title">Thread</div>
+        <div class="header-btn" onclick="toggleThreadPanel()">&#10005;</div>
+      </div>
+      <div class="messages-container" style="padding: 16px;">
+        <!-- Original message in thread -->
+        <div class="message-group" style="margin-bottom: 16px;">
+          <div class="avatar" style="background: #00b300;">BS</div>
+          <div class="message-content">
+            <div class="message-header">
+              <span class="message-author">Bob Smith</span>
+              <span class="message-timestamp">9:35 AM</span>
+            </div>
+            <div class="ui-chat__messagecontent">
+              <em>Original message starting the thread...</em>
+            </div>
+          </div>
+        </div>
+        
+        <div class="thread-replies">
+          <div class="reply-message">
+            <span class="reply-author">John:</span>
+            Good point about the error handling!
+          </div>
+          <div class="reply-message">
+            <span class="reply-author">Alice:</span>
+            I agree, maybe we should also add logging?
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    // Mock functionality for testing
+    function sendTestMessage() {
+      const editor = document.getElementById('teams-editor');
+      const text = editor.innerText.trim();
+      
+      if (!text) return;
+      
+      // In a real extension, this would trigger the content script
+      console.log('[Teams Mock] Sending message:', text);
+      alert('Message would be sent: ' + text);
+      
+      // Clear the editor
+      editor.innerHTML = '';
+    }
+    
+    function toggleThreadPanel() {
+      const panel = document.getElementById('thread-panel');
+      panel.classList.toggle('active');
+    }
+    
+    // Simulate adding messages dynamically (for testing observer)
+    setInterval(() => {
+      if (Math.random() > 0.95) {
+        console.log('[Teams Mock] Simulating new message arrival...');
+      }
+    }, 5000);
+    
+    // Console hint for testers
+    console.log('%c[Teams Mock Page]', 'color: #6264a7; font-weight: bold;', 'MS Teams Web mock loaded. This simulates the Teams interface for testing the UniversalChatbot extension.');
+    console.log('To test the content script, check for:');
+    console.log('  - Chat container: [data-tid="chat-list"]');
+    console.log('  - Messages: [data-tid="message"]');
+    console.log('  - Input: [data-tid="ckeditor"] (contenteditable)');
+    console.log('  - Send button: [data-tid="send-message-button"]');
+  </script>
+</body>
+</html>

@@ -1,0 +1,44 @@
+{
+  "name": "Microsoft Teams",
+  "domain": "teams.microsoft.com",
+  "url_patterns": ["teams.microsoft.com"],
+  "selectors": {
+    "chat_container": "[data-tid='chat-list']",
+    "messages": "[data-tid='message']",
+    "message_text": ".ui-chat__messagecontent",
+    "message_author": "[data-tid='message-author-name']",
+    "message_timestamp": "[data-tid='message-timestamp']",
+    "own_message_indicator": "[data-tid='message-from-me']",
+    "input_area": "[data-tid='ckeditor']",
+    "input": "[data-tid='ckeditor']",
+    "send_button": "[data-tid='send-message-button']",
+    "typing_indicator": ".ui-chat__typing-indicator"
+  },
+  "observers": {
+    "list_mutation": "[data-tid='chat-list']",
+    "new_message_class": "[data-tid='message']"
+  },
+  "features": {
+    "supports_replies": true,
+    "supports_threads": true,
+    "supports_media": true,
+    "supports_reactions": true,
+    "supports_mentions": true,
+    "supports_rich_text": true,
+    "uses_react": true,
+    "uses_ckeditor": true,
+    "uses_shadow_dom": false,
+    "virtual_scroll": true
+  },
+  "ckeditor_config": {
+    "contenteditable_selector": "[contenteditable='true']",
+    "requires_html_input": true,
+    "trigger_input_event": true,
+    "trigger_keydown": true
+  },
+  "chat_types": {
+    "channel": "[data-tid='channel-chat']",
+    "private_chat": "[data-tid='chat-list']",
+    "meeting_chat": "[data-tid='meeting-chat']"
+  }
+}

@@ -3,5 +3,6 @@
   "web.telegram.org": "telegram.json",
   "discord.com": "discord.json",
   "app.slack.com": "slack.json",
+  "teams.microsoft.com": "teams.json",
   "generic": "generic.json"
 }
