@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Slack Web Mock - Test Page</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: #1a1d21;
+      color: #d1d2d3;
+      height: 100vh;
+      overflow: hidden;
+    }
+    
+    .p-workspace {
+      display: flex;
+      height: 100vh;
+    }
+    
+    /* Sidebar */
+    .p-workspace__sidebar {
+      width: 260px;
+      background: #1a1d21;
+      border-right: 1px solid #34383e;
+      padding: 16px;
+    }
+    
+    .p-workspace__sidebar h2 {
+      font-size: 16px;
+      margin-bottom: 16px;
+      color: #fff;
+    }
+    
+    .sidebar-section {
+      margin-bottom: 20px;
+    }
+    
+    .sidebar-section h3 {
+      font-size: 12px;
+      color: #9fa1a3;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+    
+    .channel-item, .dm-item {
+      padding: 6px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-bottom: 2px;
+      display: flex;
+      align-items: center;
+    }
+    
+    .channel-item:hover, .dm-item:hover {
+      background: #2c2f33;
+    }
+    
+    .channel-icon {
+      margin-right: 8px;
+      color: #9fa1a3;
+    }
+    
+    /* Main Content */
+    .p-workspace__primary_view {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: #1a1d21;
+    }
+    
+    /* Header */
+    .p-view_header {
+      height: 61px;
+      border-bottom: 1px solid #34383e;
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      background: #1a1d21;
+    }
+    
+    .p-view_header__title {
+      font-size: 18px;
+      font-weight: 700;
+      color: #fff;
+      display: flex;
+      align-items: center;
+    }
+    
+    .channel-hash {
+      color: #9fa1a3;
+      margin-right: 6px;
+    }
+    
+    /* Message List Container with Shadow DOM */
+    .p-workspace__primary_view_contents {
+      flex: 1;
+      overflow: hidden;
+      position: relative;
+    }
+    
+    /* Virtual List Container */
+    .virtual-list-container {
+      height: 100%;
+      overflow-y: auto;
+    }
+    
+    /* Message Area */
+    .c-virtual_list {
+      padding: 20px 0;
+    }
+    
+    .c-message_list {
+      display: flex;
+      flex-direction: column;
+    }
+    
+    /* Message Row */
+    .c-message {
+      padding: 8px 20px;
+      display: flex;
+      align-items: flex-start;
+      position: relative;
+      transition: background-color 0.1s;
+    }
+    
+    .c-message:hover {
+      background: #2c2f33;
+    }
+    
+    .c-message--sent {
+      /* Special styling for own messages */
+    }
+    
+    .c-message__avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 4px;
+      background: linear-gradient(135deg, #e01e5a, #ecb22e);
+      margin-right: 12px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 700;
+      color: #fff;
+    }
+    
+    .c-message__content {
+      flex: 1;
+      min-width: 0;
+    }
+    
+    .c-message__header {
+      display: flex;
+      align-items: baseline;
+      margin-bottom: 2px;
+    }
+    
+    .c-message__sender {
+      font-weight: 700;
+      color: #fff;
+      margin-right: 8px;
+      font-size: 15px;
+    }
+    
+    .c-message__sender--self {
+      color: #1d9bd1;
+    }
+    
+    .c-timestamp {
+      font-size: 12px;
+      color: #9fa1a3;
+    }
+    
+    .c-message__body {
+      font-size: 15px;
+      line-height: 1.46668;
+      color: #d1d2d3;
+      word-wrap: break-word;
+    }
+    
+    .c-message__body a {
+      color: #1d9bd1;
+      text-decoration: none;
+    }
+    
+    .c-message__body a:hover {
+      text-decoration: underline;
+    }
+    
+    /* Thread indicator */
+    .c-message__thread {
+      display: flex;
+      align-items: center;
+      margin-top: 4px;
+      color: #1d9bd1;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    
+    .c-message__thread:hover {
+      text-decoration: underline;
+    }
+    
+    .thread-avatars {
+      display: flex;
+      margin-right: 8px;
+    }
+    
+    .thread-avatar {
+      width: 20px;
+      height: 20px;
+      border-radius: 2px;
+      margin-right: -4px;
+      border: 2px solid #1a1d21;
+    }
+    
+    /* Message Input Area with Shadow DOM */
+    .p-workspace__input {
+      border-top: 1px solid #34383e;
+      padding: 0 20px 24px;
+      background: #1a1d21;
+    }
+    
+    /* Regular input fallback */
+    .message-input-fallback {
+      width: 100%;
+      padding: 12px 16px;
+      border: 1px solid #565856;
+      border-radius: 8px;
+      background: #222529;
+      color: #d1d2d3;
+      font-size: 15px;
+      resize: none;
+      min-height: 44px;
+    }
+    
+    .message-input-fallback:focus {
+      outline: none;
+      border-color: #1d9bd1;
+    }
+    
+    /* Send button */
+    .send-button {
+      position: absolute;
+      right: 32px;
+      bottom: 32px;
+      background: #007a5a;
+      border: none;
+      border-radius: 4px;
+      padding: 8px 16px;
+      color: #fff;
+      font-size: 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    
+    .send-button:hover {
+      background: #008566;
+    }
+    
+    /* Day divider */
+    .c-message_list__day_divider {
+      display: flex;
+      align-items: center;
+      margin: 20px 0;
+      padding: 0 20px;
+    }
+    
+    .c-message_list__day_divider__line {
+      flex: 1;
+      height: 1px;
+      background: #34383e;
+    }
+    
+    .c-message_list__day_divider__label {
+      padding: 0 16px;
+      font-size: 13px;
+      color: #9fa1a3;
+      font-weight: 600;
+    }
+    
+    /* Thread panel (right side) */
+    .thread-panel {
+      width: 400px;
+      border-left: 1px solid #34383e;
+      background: #1a1d21;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .thread-panel-header {
+      height: 61px;
+      border-bottom: 1px solid #34383e;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+    }
+    
+    .thread-panel-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #fff;
+    }
+    
+    .thread-close-btn {
+      background: none;
+      border: none;
+      color: #9fa1a3;
+      font-size: 20px;
+      cursor: pointer;
+    }
+    
+    /* Typing indicator */
+    .c-typing-indicator {
+      display: flex;
+      align-items: center;
+      padding: 8px 20px;
+      font-size: 13px;
+      color: #9fa1a3;
+    }
+    
+    .typing-dots {
+      display: flex;
+      margin-right: 8px;
+    }
+    
+    .typing-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #9fa1a3;
+      margin: 0 2px;
+      animation: typing 1.4s infinite;
+    }
+    
+    .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+    
+    @keyframes typing {
+      0%, 60%, 100% { transform: translateY(0); }
+      30% { transform: translateY(-4px); }
+    }
+    
+    /* Reactions */
+    .c-reactions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-top: 4px;
+    }
+    
+    .c-reaction {
+      display: flex;
+      align-items: center;
+      padding: 2px 6px;
+      background: #222529;
+      border: 1px solid #565856;
+      border-radius: 12px;
+      font-size: 12px;
+    }
+    
+    .c-reaction__emoji {
+      margin-right: 4px;
+    }
+    
+    .c-reaction__count {
+      color: #9fa1a3;
+    }
+    
+    /* Debug panel */
+    .debug-panel {
+      position: fixed;
+      bottom: 100px;
+      right: 20px;
+      background: #2c2f33;
+      border: 1px solid #565856;
+      border-radius: 8px;
+      padding: 16px;
+      max-width: 400px;
+      font-family: monospace;
+      font-size: 12px;
+      z-index: 1000;
+    }
+    
+    .debug-panel h3 {
+      margin-bottom: 8px;
+      color: #fff;
+    }
+    
+    .debug-output {
+      background: #1a1d21;
+      padding: 8px;
+      border-radius: 4px;
+      max-height: 200px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+  <div class="p-workspace">
+    <!-- Sidebar -->
+    <div class="p-workspace__sidebar">
+      <h2>🔌 UniversalChatbot Test</h2>
+      
+      <div class="sidebar-section" data-qa="channels">
+        <h3>Channels</h3>
+        <div class="channel-item">
+          <span class="channel-icon">#</span>
+          <span>general</span>
+        </div>
+        <div class="channel-item">
+          <span class="channel-icon">#</span>
+          <span>random</span>
+        </div>
+        <div class="channel-item">
+          <span class="channel-icon">#</span>
+          <span>development</span>
+        </div>
+      </div>
+      
+      <div class="sidebar-section" data-qa="direct_messages">
+        <h3>Direct Messages</h3>
+        <div class="dm-item">
+          <span class="channel-icon">💬</span>
+          <span>slackbot</span>
+        </div>
+        <div class="dm-item">
+          <span class="channel-icon">💬</span>
+          <span>teammate</span>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Primary View -->
+    <div class="p-workspace__primary_view">
+      <!-- Header -->
+      <div class="p-view_header">
+        <div class="p-view_header__title">
+          <span class="channel-hash">#</span>
+          <span>general</span>
+        </div>
+      </div>
+      
+      <!-- Message List -->
+      <div class="p-workspace__primary_view_contents">
+        <div class="virtual-list-container" data-qa="virtual-list-container">
+          <div data-qa="virtual-list" class="c-virtual_list">
+            <div class="c-message_list">
+              <!-- Day Divider -->
+              <div class="c-message_list__day_divider">
+                <div class="c-message_list__day_divider__line"></div>
+                <div class="c-message_list__day_divider__label">Today</div>
+                <div class="c-message_list__day_divider__line"></div>
+              </div>
+              
+              <!-- Message 1 -->
+              <div data-qa="message-row" class="c-message" data-message-id="msg-1">
+                <div class="c-message__avatar">JD</div>
+                <div class="c-message__content">
+                  <div class="c-message__header">
+                    <span class="c-message__sender">John Doe</span>
+                    <time class="c-timestamp" datetime="2026-03-27T09:30:00Z">9:30 AM</time>
+                  </div>
+                  <div class="c-message__body">
+                    Hello team! Welcome to the Slack Web integration test. 👋
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Message 2 - Self (sent) -->
+              <div data-qa="message-row" class="c-message c-message--sent" data-message-id="msg-2" data-from-me="true">
+                <div class="c-message__avatar" style="background: linear-gradient(135deg, #1d9bd1, #4aa3df);">ME</div>
+                <div class="c-message__content">
+                  <div class="c-message__header">
+                    <span class="c-message__sender c-message__sender--self">Me (You)</span>
+                    <time class="c-timestamp" datetime="2026-03-27T09:31:00Z">9:31 AM</time>
+                  </div>
+                  <div class="c-message__body">
+                    Thanks! Testing the UniversalChatbot integration with Shadow DOM support.
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Message 3 - With Thread -->
+              <div data-qa="message-row" class="c-message" data-message-id="msg-3" data-thread-id="thread-1">
+                <div class="c-message__avatar" style="background: linear-gradient(135deg, #e01e5a, #f06292);">AS</div>
+                <div class="c-message__content">
+                  <div class="c-message__header">
+                    <span class="c-message__sender">Alice Smith</span>
+                    <time class="c-timestamp" datetime="2026-03-27T09:35:00Z">9:35 AM</time>
+                  </div>
+                  <div class="c-message__body">
+                    Has anyone tested the virtual scroll handling yet?
+                  </div>
+                  <div class="c-message__thread" data-qa="thread_indicator">
+                    <div class="thread-avatars">
+                      <div class="thread-avatar" style="background: linear-gradient(135deg, #1d9bd1, #4aa3df);"></div>
+                      <div class="thread-avatar" style="background: linear-gradient(135deg, #e01e5a, #f06292);"></div>
+                    </div>
+                    <span>3 replies</span>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Message 4 - With Reactions -->
+              <div data-qa="message-row" class="c-message" data-message-id="msg-4">
+                <div class="c-message__avatar" style="background: linear-gradient(135deg, #ecb22e, #f5c96b);">RJ</div>
+                <div class="c-message__content">
+                  <div class="c-message__header">
+                    <span class="c-message__sender">Robert Johnson</span>
+                    <time class="c-timestamp" datetime="2026-03-27T09:40:00Z">9:40 AM</time>
+                  </div>
+                  <div class="c-message__body">
+                    Virtual scrolling works great! Lazy loading is smooth. 🎉
+                  </div>
+                  <div class="c-reactions">
+                    <div class="c-reaction">
+                      <span class="c-reaction__emoji">👍</span>
+                      <span class="c-reaction__count">5</span>
+                    </div>
+                    <div class="c-reaction">
+                      <span class="c-reaction__emoji">🎉</span>
+                      <span class="c-reaction__count">3</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Message 5 - Self (sent) -->
+              <div data-qa="message-row" class="c-message c-message--sent" data-message-id="msg-5" data-from-me="true">
+                <div class="c-message__avatar" style="background: linear-gradient(135deg, #1d9bd1, #4aa3df);">ME</div>
+                <div class="c-message__content">
+                  <div class="c-message__header">
+                    <span class="c-message__sender c-message__sender--self">Me (You)</span>
+                    <time class="c-timestamp" datetime="2026-03-27T09:42:00Z">9:42 AM</time>
+                  </div>
+                  <div class="c-message__body">
+                    Great! The Shadow DOM messages are being detected properly.
+                  </div>
+                  <div class="c-reactions">
+                    <div class="c-reaction">
+                      <span class="c-reaction__emoji">🚀</span>
+                      <span class="c-reaction__count">2</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Message 6 -->
+              <div data-qa="message-row" class="c-message" data-message-id="msg-6">
+                <div class="c-message__avatar" style="background: linear-gradient(135deg, #8e24aa, #ba68c8);">EK</div>
+                <div class="c-message__content">
+                  <div class="c-message__header">
+                    <span class="c-message__sender">Emily Kim</span>
+                    <time class="c-timestamp" datetime="2026-03-27T09:45:00Z">9:45 AM</time>
+                  </div>
+                  <div class="c-message__body">
+                    Thread support is working too! Check the reply indicators.
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Message 7 -->
+              <div data-qa="message-row" class="c-message" data-message-id="msg-7">
+                <div class="c-message__avatar" style="background: linear-gradient(135deg, #007a5a, #4db6ac);">MW</div>
+                <div class="c-message__content">
+                  <div class="c-message__header">
+                    <span class="c-message__sender">Michael Wilson</span>
+                    <time class="c-timestamp" datetime="2026-03-27T09:50:00Z">9:50 AM</time>
+                  </div>
+                  <div class="c-message__body">
+                    This is perfect for testing <a href="#">UniversalChatbot</a> with Slack Web! 
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Typing Indicator -->
+              <div class="c-typing-indicator">
+                <div class="typing-dots">
+                  <div class="typing-dot"></div>
+                  <div class="typing-dot"></div>
+                  <div class="typing-dot"></div>
+                </div>
+                <span>Someone is typing...</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Message Input (Will use Shadow DOM) -->
+      <div class="p-workspace__input" id="shadow-host">
+        <!-- Shadow DOM will be attached here -->
+        <textarea class="message-input-fallback" data-qa="message_input" placeholder="Message #general"></textarea>
+        <button class="send-button" data-qa="send_button">
+          <span>Send</span>
+          <span>➤</span>
+        </button>
+      </div>
+    </div>
+    
+    <!-- Thread Panel -->
+    <div class="thread-panel" style="display: none;" id="thread-panel">
+      <div class="thread-panel-header">
+        <span class="thread-panel-title">Thread</span>
+        <button class="thread-close-btn">×</button>
+      </div>
+      <div class="p-workspace__primary_view_contents" style="padding: 20px;">
+        <p style="color: #9fa1a3; font-size: 13px;">Thread view would appear here...</p>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Debug Panel -->
+  <div class="debug-panel">
+    <h3>📊 Detection Debug</h3>
+    <div class="debug-output" id="debug-output">Waiting for messages...</div>
+  </div>
+
+  <script>
+    // Create Shadow DOM for input area to simulate Slack's architecture
+    const shadowHost = document.getElementById('shadow-host');
+    const fallbackInput = shadowHost.querySelector('.message-input-fallback');
+    
+    // Attach shadow root (but keep fallback for browsers that don't support it well)
+    if (shadowHost.attachShadow) {
+      const shadowRoot = shadowHost.attachShadow({ mode: 'open' });
+      
+      shadowRoot.innerHTML = `
+        <style>
+          :host {
+            display: flex;
+            align-items: flex-end;
+            padding: 8px 20px 24px;
+            background: #1a1d21;
+          }
+          
+          .ql-editor {
+            flex: 1;
+            min-height: 44px;
+            max-height: 400px;
+            padding: 12px 16px;
+            border: 1px solid #565856;
+            border-radius: 8px;
+            background: #222529;
+            color: #d1d2d3;
+            font-size: 15px;
+            font-family: inherit;
+            resize: none;
+            outline: none;
+          }
+          
+          .ql-editor:focus {
+            border-color: #1d9bd1;
+          }
+          
+          .ql-editor::placeholder {
+            color: #9fa1a3;
+          }
+          
+          .send-button {
+            margin-left: 8px;
+            background: #007a5a;
+            border: none;
+            border-radius: 4px;
+            padding: 8px 16px;
+            color: #fff;
+            font-size: 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+          }
+          
+          .send-button:hover {
+            background: #008566;
+          }
+        </style>
+        <div class="ql-editor" contenteditable="true" data-qa="message_input" placeholder="Message #general"></div>
+        <button class="send-button" data-qa="send_button">
+          <span>Send</span>
+          <span>➤</span>
+        </button>
+      `;
+      
+      // Hide fallback
+      fallbackInput.style.display = 'none';
+      shadowHost.querySelector('.send-button').style.display = 'none';
+      
+      console.log('[Slack Mock] Shadow DOM attached to input area');
+    } else {
+      console.log('[Slack Mock] Shadow DOM not supported, using fallback');
+    }
+    
+    // Simulated virtual scroll behavior
+    const virtualList = document.querySelector('[data-qa="virtual-list"]');
+    let lastScrollTop = 0;
+    
+    virtualList?.addEventListener('scroll', () => {
+      const scrollTop = virtualList.scrollTop;
+      const direction = scrollTop > lastScrollTop ? 'down' : 'up';
+      lastScrollTop = scrollTop;
+      
+      // Simulate lazy loading
+      if (scrollTop < 50 && direction === 'up') {
+        console.log('[Slack Mock] Would load older messages...');
+      }
+    });
+    
+    // Debug helper
+    window.logToDebug = (msg) => {
+      const debug = document.getElementById('debug-output');
+      const timestamp = new Date().toLocaleTimeString();
+      debug.textContent = `[${timestamp}] ${msg}\n` + debug.textContent;
+    };
+    
+    // Log that page is ready
+    console.log('[Slack Mock] Test page loaded');
+    console.log('[Slack Mock] Platform:', window.location.hostname);
+    
+    // Expose queryShadowDOM helper for testing
+    window.queryShadowDOM = function(selector, shadowHost) {
+      const host = document.querySelector(shadowHost);
+      if (!host || !host.shadowRoot) return null;
+      return host.shadowRoot.querySelector(selector);
+    };
+    
+    // Thread panel toggle
+    document.querySelectorAll('.c-message__thread').forEach(thread => {
+      thread.addEventListener('click', () => {
+        document.getElementById('thread-panel').style.display = 'flex';
+      });
+    });
+    
+    document.querySelector('.thread-close-btn')?.addEventListener('click', () => {
+      document.getElementById('thread-panel').style.display = 'none';
+    });
+    
+    // Send button functionality
+    document.querySelectorAll('[data-qa="send_button"]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const input = btn.closest('[data-qa="message_input"]') || 
+                     btn.parentElement?.querySelector('[data-qa="message_input"]') ||
+                     document.querySelector('[data-qa="message_input"]');
+        const text = input?.value || input?.innerText || '';
+        if (text.trim()) {
+          console.log('[Slack Mock] Message sent:', text);
+          if (input.tagName === 'TEXTAREA') {
+            input.value = '';
+          } else {
+            input.innerText = '';
+          }
+        }
+      });
+    });
+  </script>
+</body>
+</html>

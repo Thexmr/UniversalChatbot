@@ -18,7 +18,66 @@
     if (host.includes('whatsapp')) return 'web.whatsapp.com';
     if (host.includes('telegram')) return 'web.telegram.org';
     if (host.includes('discord')) return 'discord.com';
+    if (host.includes('slack')) return 'app.slack.com';
     return 'generic';
+  }
+
+  // Shadow DOM query helper - needed for platforms like Slack
+  function queryShadowDOM(selector, shadowHost) {
+    const host = typeof shadowHost === 'string' 
+      ? document.querySelector(shadowHost) 
+      : shadowHost;
+    if (!host || !host.shadowRoot) return null;
+    return host.shadowRoot.querySelector(selector);
+  }
+
+  // Deep query that traverses shadow DOM
+  function queryDeep(selector, maxDepth = 5) {
+    // Try regular query first
+    const regular = document.querySelector(selector);
+    if (regular) return regular;
+    
+    // Search through shadow roots
+    function searchShadowRoots(root, depth) {
+      if (depth > maxDepth) return null;
+      
+      // Find all elements with shadow roots
+      const allElements = root.querySelectorAll('*');
+      for (const el of allElements) {
+        if (el.shadowRoot) {
+          // Try query in this shadow root
+          const found = el.shadowRoot.querySelector(selector);
+          if (found) return found;
+          
+          // Recurse deeper
+          const deeper = searchShadowRoots(el.shadowRoot, depth + 1);
+          if (deeper) return deeper;
+        }
+      }
+      return null;
+    }
+    
+    return searchShadowRoots(document, 0);
+  }
+
+  // Query all elements through shadow DOM
+  function queryAllDeep(selector, maxDepth = 5) {
+    const results = [...document.querySelectorAll(selector)];
+    
+    function searchShadowRoots(root, depth) {
+      if (depth > maxDepth) return;
+      
+      const allElements = root.querySelectorAll('*');
+      for (const el of allElements) {
+        if (el.shadowRoot) {
+          results.push(...el.shadowRoot.querySelectorAll(selector));
+          searchShadowRoots(el.shadowRoot, depth + 1);
+        }
+      }
+    }
+    
+    searchShadowRoots(document, 0);
+    return results;
   }
 
   // Load platform config from adapters registry
@@ -104,11 +163,46 @@
     extractMessages();
   }
 
+  // Extract Slack thread info from message element
+  function extractSlackThreadInfo(msgEl) {
+    const threadIndicator = msgEl.querySelector('[data-qa="thread_indicator"]');
+    if (threadIndicator) {
+      return {
+        is_thread: true,
+        thread_id: msgEl.getAttribute('data-thread-id') || null,
+        reply_count: threadIndicator.textContent.match(/\d+/)?.[0] || '0'
+      };
+    }
+    return { is_thread: false };
+  }
+
+  // Detect Slack channel/DM type
+  function detectSlackChatType() {
+    const channelHeader = document.querySelector('.p-workspace__primary_view_contents');
+    if (!channelHeader) return 'unknown';
+    
+    // Check for DM indicators
+    const isDM = !!document.querySelector('.p-workspace__sidebar [data-qa="direct_messages"]');
+    const isChannel = !!document.querySelector('.p-workspace__sidebar [data-qa="channels"]');
+    
+    // Get current channel/DM name
+    const headerName = document.querySelector('.p-classic_nav__team_header__name,.p-view_header__title');
+    const chatName = headerName?.textContent?.trim() || 'unknown';
+    
+    return {
+      type: isDM ? 'dm' : (isChannel ? 'channel' : 'unknown'),
+      name: chatName
+    };
+  }
+
   // Detect if a chat window is currently open
   function detectChatWindow() {
     if (!adapterConfig) return;
 
-    const chatContainer = document.querySelector(adapterConfig.selectors.chat_container);
+    // Use deep query for Shadow DOM support
+    const chatContainer = adapterConfig.features?.uses_shadow_dom 
+      ? queryDeep(adapterConfig.selectors.chat_container) 
+      : document.querySelector(adapterConfig.selectors.chat_container);
     const isOpen = !!chatContainer;
 
     // Chat state changed
@@ -118,23 +212,60 @@
       
       // Start observing the chat container specifically
       if (chatContainer && !chatObserver) {
-        const observerTarget = adapterConfig.selectors.list_mutation 
-          ? document.querySelector(adapterConfig.selectors.list_mutation) || chatContainer
-          : chatContainer;
+        let observerTarget;
+        
+        if (adapterConfig.selectors.list_mutation) {
+          // Use deep query for Shadow DOM support
+          observerTarget = adapterConfig.features?.uses_shadow_dom
+            ? queryDeep(adapterConfig.selectors.list_mutation)
+            : document.querySelector(adapterConfig.selectors.list_mutation);
+        }
+        
+        if (!observerTarget) {
+          observerTarget = chatContainer;
+        }
+        
+        // For Slack virtual scroll, also observe for lazy-loaded content
+        const observerConfig = adapterConfig.features?.virtual_scroll 
+          ? { childList: true, subtree: true, attributes: true }
+          : { childList: true, subtree: true };
           
         chatObserver = new MutationObserver((mutations) => {
-          extractMessages();
+          // Handle virtual scroll - new items may appear
+          if (adapterConfig.features?.virtual_scroll) {
+            extractMessages();
+            // Re-scan for new elements that might have appeared
+            setTimeout(extractMessages, 100);
+          } else {
+            extractMessages();
+          }
         });
-        chatObserver.observe(observerTarget, {
-          childList: true,
-          subtree: true
-        });
+        
+        chatObserver.observe(observerTarget, observerConfig);
+        
+        // For Slack: also set up scroll listener to trigger extraction on virtual scroll
+        if (adapterConfig.features?.virtual_scroll) {
+          const scrollContainer = chatContainer.querySelector('[data-qa="virtual-list"]') || chatContainer;
+          scrollContainer?.addEventListener('scroll', debounce(() => {
+            extractMessages();
+          }, 250));
+        }
       }
       
-      chrome.runtime.sendMessage({
-        type: 'chat_opened',
-        platform: currentPlatform
-      });
+      // Send Slack-specific chat info
+      if (currentPlatform === 'app.slack.com') {
+        const chatInfo = detectSlackChatType();
+        chrome.runtime.sendMessage({
+          type: 'chat_opened',
+          platform: currentPlatform,
+          chatInfo: chatInfo
+        });
+      } else {
+        chrome.runtime.sendMessage({
+          type: 'chat_opened',
+          platform: currentPlatform
+        });
+      }
       
     } else if (!isOpen && window.ucbChatOpen) {
       window.ucbChatOpen = false;
@@ -180,6 +311,29 @@
       // Check class patterns typical for own messages
       return msgEl.classList.value.includes('groupStart') === false ||
              msgEl.getAttribute('data-is-author-self') === 'true';
+    }
+    
+    if (platform === 'app.slack.com') {
+      // Slack own message detection
+      // Slack uses c-message--sent class for own messages
+      if (msgEl.classList.contains('c-message--sent') || 
+          msgEl.closest('.c-message--sent')) {
+        return true;
+      }
+      // Check via data-qa attributes
+      if (msgEl.getAttribute('data-qa')?.includes('message-sent')) {
+        return true;
+      }
+      // Check for sender match with current user
+      const senderEl = msgEl.querySelector('.c-message__sender');
+      if (senderEl) {
+        // In Slack, we need to compare with current user's display name
+        // This is a heuristic - self messages often have specific attributes
+        const isFromSelf = msgEl.getAttribute('data-from-me') === 'true' ||
+                          msgEl.querySelector('[data-qa="message-sent"]') !== null;
+        return isFromSelf;
+      }
+      return false;
     }
     
     // Generic fallback - check for common patterns
@@ -266,13 +420,32 @@
     return `${text.substring(0, 20)}_${timestamp}_${random}`;
   }
 
+  // Debounce helper for scroll events
+  function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+      const later = () => {
+        clearTimeout(timeout);
+        func(...args);
+      };
+      clearTimeout(timeout);
+      timeout = setTimeout(later, wait);
+    };
+  }
+
   // Extract messages from the chat
   function extractMessages() {
     if (!adapterConfig || !window.ucbChatOpen) return;
 
-    const messageElements = document.querySelectorAll(adapterConfig.selectors.messages);
+    // Use deep query for platforms with Shadow DOM
+    const messageElements = adapterConfig.features?.uses_shadow_dom
+      ? queryAllDeep(adapterConfig.selectors.messages)
+      : document.querySelectorAll(adapterConfig.selectors.messages);
     
-    messageElements.forEach((msgEl) => {
+    // Handle Slack's virtual list - remove stale references
+    const validElements = Array.from(messageElements).filter(el => document.contains(el) || el.isConnected);
+    
+    validElements.forEach((msgEl) => {
       const messageId = generateMessageId(msgEl);
       
       if (lastMessages.has(messageId)) return;
@@ -301,6 +474,14 @@
         url: window.location.href
       };
       
+      // Add Slack-specific metadata
+      if (currentPlatform === 'app.slack.com') {
+        const threadInfo = extractSlackThreadInfo(msgEl);
+        if (threadInfo.is_thread) {
+          messageData.thread = threadInfo;
+        }
+      }
+      
       lastMessages.add(messageId);
       
       // Keep set size manageable
@@ -326,7 +507,11 @@
       return false;
     }
     
-    const inputEl = document.querySelector(adapterConfig.selectors.input);
+    // Use deep query for Shadow DOM support
+    const inputEl = adapterConfig.features?.uses_shadow_dom
+      ? queryDeep(adapterConfig.selectors.input)
+      : document.querySelector(adapterConfig.selectors.input);
+      
     if (!inputEl) {
       console.error('[UCB] Input field not found');
       return false;
@@ -354,7 +539,9 @@
     
     // Click send button if available
     if (adapterConfig.selectors.send_button) {
-      const sendBtn = document.querySelector(adapterConfig.selectors.send_button);
+      const sendBtn = adapterConfig.features?.uses_shadow_dom
+        ? queryDeep(adapterConfig.selectors.send_button)
+        : document.querySelector(adapterConfig.selectors.send_button);
       if (sendBtn) {
         sendBtn.click();
         return true;

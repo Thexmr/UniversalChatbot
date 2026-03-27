@@ -1,0 +1,34 @@
+{
+  "name": "Slack",
+  "domain": "app.slack.com",
+  "url_patterns": ["app.slack.com/client/"],
+  "selectors": {
+    "chat_container": "[data-qa='virtual-list']",
+    "messages": "[data-qa='message-row']",
+    "message_text": ".c-message__body",
+    "message_author": ".c-message__sender",
+    "message_timestamp": ".c-timestamp",
+    "own_message_indicator": ".c-message--sent",
+    "input_area": "[data-qa='message_input']",
+    "input": "[data-qa='message_input']",
+    "send_button": "[data-qa='send_button']",
+    "typing_indicator": ".c-typing-indicator"
+  },
+  "observers": {
+    "list_mutation": "[data-qa='virtual-list']",
+    "new_message_class": "[data-qa='message-row']"
+  },
+  "features": {
+    "supports_replies": true,
+    "supports_media": true,
+    "supports_reactions": true,
+    "supports_threads": true,
+    "uses_react": true,
+    "uses_shadow_dom": true,
+    "virtual_scroll": true
+  },
+  "shadow_hosts": {
+    "message_input": ".p-workspace__input",
+    "virtual_list": "[data-qa='virtual-list-container']"
+  }
+}
