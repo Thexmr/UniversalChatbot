@@ -5,6 +5,108 @@ let nativePort = null;
 let isConnected = false;
 let updateCheckInterval = null;
 
+// ============================================
+// SMARTTASK AI INTEGRATION
+// ============================================
+
+const SMARTTASK_CONFIG = {
+  enabled: true,
+  webhookUrl: 'http://localhost:8000/api/openclaw/webhook',
+  agentId: 'universalchatbot',
+  autoCreateTasks: true,
+  includeOutgoing: false
+};
+
+/**
+ * Send chat message to SmartTask AI webhook
+ * Creates a task automatically when a message is received
+ */
+async function sendToSmartTask(messageData) {
+  // Check if SmartTask integration is enabled
+  const storage = await chrome.storage.local.get(['smarttaskEnabled']);
+  if (storage.smarttaskEnabled === false) {
+    console.log('[UCB] SmartTask integration disabled');
+    return;
+  }
+  
+  // Skip outgoing messages if not configured to include them
+  if (messageData.isOwn && !SMARTTASK_CONFIG.includeOutgoing) {
+    return;
+  }
+  
+  try {
+    const payload = {
+      agent_id: SMARTTASK_CONFIG.agentId,
+      message: `Neue Nachricht: ${messageData.text}`,
+      original_message: messageData.text,
+      tasks: ['Antwort verfassen'],
+      platform: messageData.platform || 'unknown',
+      sender: messageData.sender || 'unknown',
+      timestamp: new Date().toISOString(),
+      url: messageData.url || '',
+      isOwn: messageData.isOwn || false
+    };
+    
+    console.log('[UCB] Sending to SmartTask:', payload);
+    
+    const response = await fetch(SMARTTASK_CONFIG.webhookUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    const result = await response.json();
+    console.log('[UCB] SmartTask response:', result);
+    
+    // Update badge to show task created
+    chrome.action.setBadgeText({ text: '✓' });
+    chrome.action.setBadgeBackgroundColor({ color: '#4CAF50' });
+    
+    // Clear badge after 3 seconds
+    setTimeout(() => {
+      chrome.action.setBadgeText({ text: '' });
+    }, 3000);
+    
+  } catch (error) {
+    console.error('[UCB] Failed to send to SmartTask:', error);
+  }
+}
+
+/**
+ * Update SmartTask configuration
+ */
+async function updateSmartTaskConfig(config) {
+  if (config.enabled !== undefined) {
+    SMARTTASK_CONFIG.enabled = config.enabled;
+    await chrome.storage.local.set({ smarttaskEnabled: config.enabled });
+  }
+  if (config.webhookUrl) {
+    SMARTTASK_CONFIG.webhookUrl = config.webhookUrl;
+    await chrome.storage.local.set({ smarttaskWebhookUrl: config.webhookUrl });
+  }
+  console.log('[UCB] SmartTask config updated:', SMARTTASK_CONFIG);
+}
+
+/**
+ * Load SmartTask configuration from storage
+ */
+async function loadSmartTaskConfig() {
+  const storage = await chrome.storage.local.get(['smarttaskEnabled', 'smarttaskWebhookUrl']);
+  if (storage.smarttaskEnabled !== undefined) {
+    SMARTTASK_CONFIG.enabled = storage.smarttaskEnabled;
+  }
+  if (storage.smarttaskWebhookUrl) {
+    SMARTTASK_CONFIG.webhookUrl = storage.smarttaskWebhookUrl;
+  }
+  console.log('[UCB] SmartTask config loaded:', SMARTTASK_CONFIG);
+}
+
 // Initialize connection to Native Messaging Host
 function connectNativeHost() {
   if (nativePort) {
@@ -230,6 +332,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         url: sender.url,
         timestamp: Date.now()
       });
+      
+      // Also send to SmartTask AI
+      sendToSmartTask(request.data);
       break;
       
     case 'chat_opened':
@@ -297,6 +402,19 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         }
       });
       return true; // Keep channel open
+      
+    case 'get_smarttask_config':
+      sendResponse({
+        enabled: SMARTTASK_CONFIG.enabled,
+        webhookUrl: SMARTTASK_CONFIG.webhookUrl
+      });
+      return true;
+      
+    case 'set_smarttask_config':
+      updateSmartTaskConfig(request.config).then(() => {
+        sendResponse({ success: true });
+      });
+      return true; // Keep channel open
   }
   
   return true;
@@ -310,6 +428,9 @@ chrome.runtime.onStartup.addListener(() => {
   console.log('[UCB] Extension started');
   connectNativeHost();
   
+  // Load SmartTask configuration
+  loadSmartTaskConfig();
+  
   // Check for updates on startup
   checkForUpdates();
   
@@ -321,10 +442,14 @@ chrome.runtime.onInstalled.addListener((details) => {
   console.log('[UCB] Extension installed/updated');
   connectNativeHost();
   
+  // Load SmartTask configuration
+  loadSmartTaskConfig();
+  
   // Set default enabled platforms
   chrome.storage.local.set({
     enabledPlatforms: ['web.whatsapp.com', 'web.telegram.org'],
-    extensionEnabled: true
+    extensionEnabled: true,
+    smarttaskEnabled: true  // Enable SmartTask by default
   });
   
   // Check for updates

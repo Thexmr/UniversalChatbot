@@ -7,11 +7,13 @@
     "activeTab",
     "scripting",
     "storage",
-    "nativeMessaging"
+    "nativeMessaging",
+    "notifications"
   ],
   "host_permissions": [
     "https://web.whatsapp.com/*",
-    "https://web.telegram.org/*"
+    "https://web.telegram.org/*",
+    "http://localhost:8000/*"
   ],
   "background": {
     "service_worker": "background.js"

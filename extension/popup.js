@@ -4,6 +4,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   const enableToggle = document.getElementById('enableToggle');
   const nativeStatus = document.getElementById('nativeStatus');
   const nativeStatusText = document.getElementById('nativeStatusText');
+  const smarttaskToggle = document.getElementById('smarttaskToggle');
+  const smarttaskStatus = document.getElementById('smarttaskStatus');
+  const smarttaskStatusText = document.getElementById('smarttaskStatusText');
   const reconnectBtn = document.getElementById('reconnectBtn');
   const platformToggles = document.querySelectorAll('.platform-toggle');
   const currentVersionEl = document.getElementById('currentVersion');
@@ -31,10 +34,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     'extensionEnabled', 
     'enabledPlatforms',
     'hasUpdate',
-    'updateInfo'
+    'updateInfo',
+    'smarttaskEnabled'
   ]);
   
   enableToggle.checked = storage.extensionEnabled !== false;
+  smarttaskToggle.checked = storage.smarttaskEnabled !== false;
+  
   
   const platforms = storage.enabledPlatforms || ['web.whatsapp.com', 'web.telegram.org'];
   platformToggles.forEach(toggle => {
@@ -48,11 +54,24 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Check native host status
   updateNativeStatus();
+  
+  // Check SmartTask status
+  updateSmartTaskStatus();
 
   // Event Listeners
   enableToggle.addEventListener('change', async () => {
     await chrome.storage.local.set({ extensionEnabled: enableToggle.checked });
     updateStatusText();
+  });
+  
+  // SmartTask toggle
+  smarttaskToggle.addEventListener('change', async () => {
+    await chrome.storage.local.set({ smarttaskEnabled: smarttaskToggle.checked });
+    await chrome.runtime.sendMessage({
+      type: 'set_smarttask_config',
+      config: { enabled: smarttaskToggle.checked }
+    });
+    updateSmartTaskStatus();
   });
 
   platformToggles.forEach(toggle => {
@@ -261,5 +280,32 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   function updateStatusText() {
     const isEnabled = enableToggle.checked;
+  }
+  
+  // SmartTask status check
+  async function updateSmartTaskStatus() {
+    try {
+      const response = await fetch('http://localhost:8000/api/openclaw/webhook', {
+        method: 'HEAD',
+        mode: 'no-cors'
+      });
+      
+      // If we get here or no error, SmartTask is likely running
+      if (smarttaskToggle.checked) {
+        smarttaskStatus.className = 'status-dot';
+        smarttaskStatusText.textContent = 'Mit SmartTask verbunden';
+      } else {
+        smarttaskStatus.className = 'status-dot disconnected';
+        smarttaskStatusText.textContent = 'SmartTask Integration deaktiviert';
+      }
+    } catch (error) {
+      smarttaskStatus.className = 'status-dot disconnected';
+      if (smarttaskToggle.checked) {
+        smarttaskStatusText.textContent = 'SmartTask nicht erreichbar (localhost:8000)';
+      } else {
+        smarttaskStatusText.textContent = 'SmartTask Integration deaktiviert';
+      }
+      console.log('[UCB] SmartTask status check:', error.message);
+    }
   }
 });
